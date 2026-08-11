@@ -1,4 +1,10 @@
 {
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^(PriceTag|EmptyView|GoodsCard|Skeleton)$": "@/components/ui/$1.vue"
+    }
+  },
   "pages": [
     {
       "path": "pages/index/index",
