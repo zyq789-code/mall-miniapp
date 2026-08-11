@@ -1,0 +1,17 @@
+export const ERR = {
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  COUPON_INVALID: 'COUPON_INVALID',
+  POINTS_EXCEED: 'POINTS_EXCEED',
+  ORDER_NOT_PAYABLE: 'ORDER_NOT_PAYABLE',
+  ORDER_NOT_CANCELABLE: 'ORDER_NOT_CANCELABLE',
+  ORDER_NOT_SHIPPABLE: 'ORDER_NOT_SHIPPABLE',
+  ORDER_NOT_RECEIVABLE: 'ORDER_NOT_RECEIVABLE',
+  AFTERSALE_STATE: 'AFTERSALE_STATE',
+  REVIEW_INVALID: 'REVIEW_INVALID',
+} as const
+
+export class BusinessError extends Error {
+  constructor(public code: string, message: string) {
+    super(message); this.name = 'BusinessError'
+  }
+}
