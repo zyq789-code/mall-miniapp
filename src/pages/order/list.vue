@@ -1,0 +1,115 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { onHide, onShow, onUnload } from '@dcloudio/uni-app'
+import type { Order } from '../../models/order'
+import { goodsRepo } from '../../api/repository'
+import { getOrders, saveOrders, upsertOrder } from '../../api/order.api'
+import { formatPrice, formatTime } from '../../utils/format'
+import { cancel, ship, receive, ORDER_TIMEOUT_MS } from '../../services/order.service'
+import OrderStatusTabs from '../../components/ui/OrderStatusTabs.vue'
+import EmptyView from '../../components/ui/EmptyView.vue'
+
+const STATUS_TEXT: Record<string, string> = {
+  pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货', completed: '已完成', canceled: '已取消',
+}
+const TABS = [
+  { key: 'all', label: '全部' },
+  { key: 'pending_pay', label: '待付款' },
+  { key: 'pending_ship', label: '待发货' },
+  { key: 'pending_receive', label: '待收货' },
+  { key: 'completed', label: '已完成' },
+]
+
+const active = ref('all')
+const list = ref<Order[]>([])
+const now = ref(Date.now())
+let timer: ReturnType<typeof setInterval> | null = null
+
+const load = () => { list.value = getOrders() }
+const filtered = computed(() => (active.value === 'all' ? list.value : list.value.filter(o => o.status === active.value)))
+const startTick = () => {
+  if (timer) return
+  timer = setInterval(() => { now.value = Date.now() }, 1000)
+}
+const stopTick = () => { if (timer) { clearInterval(timer); timer = null } }
+onShow(() => { load(); startTick() })
+onHide(stopTick)
+onUnload(stopTick)
+
+const onTab = (key: string) => { active.value = key }
+const totalCount = (o: Order) => o.items.reduce((s, i) => s + i.quantity, 0)
+const remaining = (o: Order) => Math.max(0, o.createTime + ORDER_TIMEOUT_MS - now.value)
+const mmss = (ms: number) => {
+  const s = Math.ceil(ms / 1000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(Math.floor(s / 60))}:${p(s % 60)}`
+}
+const coverOf = (o: Order) => goodsRepo.get(o.items[0]?.goodsId)?.cover ?? o.items[0]?.image ?? ''
+const goDetail = (o: Order) => uni.navigateTo({ url: `/pages/order/detail?id=${o.id}` })
+const goPay = (o: Order) => uni.navigateTo({ url: `/pages/order/pay?id=${o.id}` })
+
+function run(o: Order, updater: (x: Order) => Order) {
+  try {
+    upsertOrder(updater(o))
+    load()
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+const onCancel = (o: Order) => run(o, cancel)
+const onShip = (o: Order) => run(o, x => ship(x, Date.now()))
+const onReceive = (o: Order) => run(o, x => receive(x, Date.now()))
+const onDelete = (o: Order) => {
+  saveOrders(getOrders().filter(x => x.id !== o.id))
+  load()
+}
+</script>
+<template>
+  <view class="page">
+    <OrderStatusTabs :tabs="TABS" :active="active" @change="onTab" />
+    <EmptyView v-if="!filtered.length" text="暂无订单" />
+    <view v-for="o in filtered" :key="o.id" class="card" @tap="goDetail(o)">
+      <view class="head">
+        <text class="no">订单号 {{ o.orderNo }}</text>
+        <text class="status">{{ STATUS_TEXT[o.status] }}</text>
+      </view>
+      <view class="body">
+        <image :src="coverOf(o)" class="thumb" mode="aspectFill" />
+        <view class="meta">
+          <view class="count">共 {{ totalCount(o) }} 件</view>
+          <view class="pay">实付 <text class="price">{{ formatPrice(o.payAmount) }}</text></view>
+          <view v-if="o.status === 'pending_pay'" class="countdown">
+            <text>剩 </text><text class="time">{{ mmss(remaining(o)) }}</text><text> 后自动取消</text>
+          </view>
+          <view class="time">{{ formatTime(o.createTime) }}</view>
+        </view>
+      </view>
+      <view class="foot">
+        <template v-if="o.status === 'pending_pay'">
+          <view class="btn ghost" @tap.stop="onCancel(o)">取消订单</view>
+          <view class="btn" @tap.stop="goPay(o)">去支付</view>
+        </template>
+        <view v-else-if="o.status === 'pending_ship'" class="btn" @tap.stop="onShip(o)">模拟发货</view>
+        <view v-else-if="o.status === 'pending_receive'" class="btn" @tap.stop="onReceive(o)">确认收货</view>
+        <view v-else class="btn ghost" @tap.stop="onDelete(o)">删除订单</view>
+      </view>
+    </view>
+  </view>
+</template>
+<style scoped lang="scss">
+.page { padding-bottom: 40rpx; }
+.card { background: $card; margin: 16rpx; border-radius: $radius; padding: 24rpx; }
+.head { display: flex; justify-content: space-between; font-size: 24rpx; color: $text2; border-bottom: 1rpx solid $line; padding-bottom: 16rpx; }
+.status { color: $brand; font-weight: 600; }
+.body { display: flex; padding: 20rpx 0; }
+.thumb { width: 140rpx; height: 140rpx; border-radius: 12rpx; margin-right: 20rpx; }
+.meta { flex: 1; }
+.count { color: $text2; font-size: 26rpx; }
+.pay { margin: 8rpx 0; font-size: 26rpx; color: $text2; }
+.price { color: $price; font-weight: 700; font-size: 30rpx; }
+.countdown { font-size: 24rpx; color: $warn; }
+.time { font-weight: 700; }
+.foot { display: flex; justify-content: flex-end; gap: 16rpx; border-top: 1rpx solid $line; padding-top: 20rpx; }
+.btn { background: $brand; color: #fff; padding: 14rpx 36rpx; border-radius: $radius; font-size: 26rpx; }
+.btn.ghost { background: $card; color: $text2; border: 1rpx solid $line; }
+</style>
