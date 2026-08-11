@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { Member } from '../../models/member'
-import { storage, KEYS } from '../../utils/storage'
+import { useUserStore } from '../../stores/user'
 
+const userStore = useUserStore()
 const nickname = ref('')
 const trimmed = computed(() => nickname.value.trim())
 const avatarText = computed(() => trimmed.value.charAt(0).toUpperCase() || '😀')
@@ -12,14 +12,7 @@ function onLogin(): void {
     uni.showToast({ title: '请输入昵称', icon: 'none' })
     return
   }
-  const user: Member = {
-    id: 'u' + Date.now(),
-    nickname: trimmed.value,
-    avatar: avatarText.value,
-    points: 0,
-    totalSpent: 0,
-  }
-  storage.set(KEYS.user, user)
+  userStore.login(trimmed.value, avatarText.value)
   uni.showToast({ title: '登录成功', icon: 'success' })
   setTimeout(() => uni.navigateBack(), 400)
 }

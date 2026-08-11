@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CartItem } from '../src/models/goods'
-import { addToCart, updateQuantity, toggleChecked, toggleAllChecked, removeItem, calcCheckedAmount, countChecked } from '../src/services/cart.service'
+import { addToCart, updateQuantity, toggleChecked, toggleAllChecked, removeItem, removeMany, calcCheckedAmount, countChecked } from '../src/services/cart.service'
 
 const c = (goodsId: string, skuId: string, quantity = 1, checked = true): CartItem =>
   ({ goodsId, skuId, quantity, checked, addedAt: 1 })
@@ -29,6 +29,12 @@ describe('cart', () => {
   })
   it('removeItem 删除条目', () => {
     expect(removeItem([c('g1', 's1'), c('g2', 's1')], 'g1', 's1')).toHaveLength(1)
+  })
+  it('removeMany 批量删除结算项且不修改原数组', () => {
+    const list = [c('g1', 's1'), c('g2', 's1'), c('g3', 's1')]
+    const r = removeMany(list, [{ goodsId: 'g1', skuId: 's1' }, { goodsId: 'g3', skuId: 's1' }])
+    expect(r).toEqual([c('g2', 's1')])
+    expect(list).toHaveLength(3)
   })
   it('calcCheckedAmount 只算勾选项', () => {
     const price = () => 1000

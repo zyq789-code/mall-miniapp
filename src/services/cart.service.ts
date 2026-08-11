@@ -17,6 +17,9 @@ export function toggleAllChecked(list: CartItem[], checked: boolean): CartItem[]
 export function removeItem(list: CartItem[], goodsId: string, skuId: string): CartItem[] {
   return list.filter(x => !(x.goodsId === goodsId && x.skuId === skuId))
 }
+export function removeMany(list: CartItem[], items: { goodsId: string; skuId: string }[]): CartItem[] {
+  return list.filter(x => !items.some(i => i.goodsId === x.goodsId && i.skuId === x.skuId))
+}
 export function countChecked(list: CartItem[]): number {
   return list.filter(x => x.checked).length
 }

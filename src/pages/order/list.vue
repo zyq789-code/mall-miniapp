@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import { onHide, onShow, onUnload } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
-import { getOrders, saveOrders } from '../../api/order.api'
 import { formatPrice, formatTime } from '../../utils/format'
 import { isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
 import { useOrderStore } from '../../stores/order'
@@ -69,10 +68,7 @@ function act(action: () => void) {
 const onCancel = (o: Order) => act(() => orderStore.doCancel(o))
 const onShip = (o: Order) => act(() => orderStore.doShip(o))
 const onReceive = (o: Order) => act(() => orderStore.doReceive(o))
-const onDelete = (o: Order) => {
-  saveOrders(getOrders().filter(x => x.id !== o.id))
-  orderStore.sync()
-}
+const onDelete = (o: Order) => orderStore.remove(o.id)
 </script>
 <template>
   <view class="page">

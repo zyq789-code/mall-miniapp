@@ -39,6 +39,7 @@ const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.
 
 onShow(() => {
   cart.sync()
+  userStore.sync()
   userCoupons.value = getCoupons()
   // 一次性回传：券列表选择后写入 selectedCoupon
   const sel = storage.get<string>(KEYS.selectedCoupon, '')

@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
 import type { Member } from '../../models/member'
 import { canSignIn } from '../../services/points.service'
 import { storage, KEYS } from '../../utils/storage'
 import { todayKey } from '../../utils/format'
+import { useUserStore } from '../../stores/user'
 
 const SIGN_POINTS = 10
-const user = ref<Member>()
+const userStore = useUserStore()
+const { member } = storeToRefs(userStore)
+const user = computed<Member | undefined>(() => (member.value.id ? member.value : undefined))
 const lastDay = ref('')
 const today = ref(todayKey(Date.now()))
 onShow(() => {
   today.value = todayKey(Date.now())
-  user.value = storage.get<Member | null>(KEYS.user, null) ?? undefined
+  userStore.sync()
   lastDay.value = storage.get<string>(KEYS.lastSignDay, '')
 })
 
@@ -24,10 +28,8 @@ function onSign(): void {
     return
   }
   if (!canSignIn(lastDay.value, today.value)) return
-  const next: Member = { ...user.value, points: user.value.points + SIGN_POINTS }
-  storage.set(KEYS.user, next)
+  userStore.addPoints(SIGN_POINTS)
   storage.set(KEYS.lastSignDay, today.value)
-  user.value = next
   lastDay.value = today.value
   uni.showToast({ title: `签到成功 +${SIGN_POINTS}`, icon: 'success' })
 }

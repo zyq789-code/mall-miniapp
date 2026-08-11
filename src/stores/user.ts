@@ -12,7 +12,8 @@ export const useUserStore = defineStore('user', () => {
   const addPoints = (n: number) => save({ ...member.value, points: member.value.points + n })
   const deductPoints = (n: number) => save({ ...member.value, points: Math.max(0, member.value.points - n) })
   const addSpend = (amount: number) => save({ ...member.value, totalSpent: member.value.totalSpent + amount })
+  const sync = () => { member.value = storage.get<Member | null>(KEYS.user, null) ?? { ...EMPTY } }
   const isLogin = () => !!member.value.id
   const level = () => levelOf(member.value.totalSpent)
-  return { member, login, addPoints, deductPoints, addSpend, isLogin, level, levelName }
+  return { member, login, addPoints, deductPoints, addSpend, isLogin, level, levelName, sync }
 })

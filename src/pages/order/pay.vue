@@ -6,6 +6,7 @@ import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
 import { formatPrice, formatTime } from '../../utils/format'
 import { earnBySpend } from '../../services/points.service'
+import { pointsRate } from '../../services/member.service'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const orderStore = useOrderStore()
@@ -33,9 +34,9 @@ function doPay() {
     timer = null
     try {
       const next = orderStore.doPay(o)
-      // 返积分 + 累计消费（登录后才有会员数据可累计）
+      // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）
       if (userStore.isLogin()) {
-        userStore.addPoints(earnBySpend(next.payAmount))
+        userStore.addPoints(earnBySpend(next.payAmount, pointsRate(userStore.level())))
         userStore.addSpend(next.payAmount)
       }
       uni.hideLoading()
