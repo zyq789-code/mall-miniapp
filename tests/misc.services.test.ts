@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isFlashActive, canPurchase, deductStock, calcSalePrice } from '../src/services/flash.service'
-import { applyAfterSale, approve, refund, reject } from '../src/services/aftersale.service'
+import { applyAfterSale, approve, refund, reject, reappeal } from '../src/services/aftersale.service'
 import { canReview, validateReview, assertCanReview } from '../src/services/review.service'
 import { BusinessError } from '../src/utils/errors'
 import type { AfterSale } from '../src/models/aftersale'
@@ -41,6 +41,10 @@ describe('aftersale', () => {
     expect(() => reject(approved)).toThrow(BusinessError)
     expect(() => refund({ ...base, status: 'refunded' } as AfterSale)).toThrow(BusinessError)
     expect(() => reject({ ...base, status: 'rejected' } as AfterSale)).toThrow(BusinessError)
+  })
+  it('reappeal 仅允许 rejected', () => {
+    expect(reappeal({ ...base, status: 'rejected' }).status).toBe('pending')
+    expect(() => reappeal(base)).toThrow(BusinessError)
   })
 })
 describe('review', () => {

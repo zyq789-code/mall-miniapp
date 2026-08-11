@@ -22,8 +22,14 @@ const trace = computed<TraceNode[]>(() => {
   const o = order.value
   if (!o) return []
   const base = o.shipTime ?? o.createTime
+  if (o.status === 'pending_pay') {
+    return [{ label: '等待买家付款', time: base, desc: '订单已提交，请尽快完成支付', active: true }]
+  }
   if (o.status === 'pending_ship') {
     return [{ label: '商家已接单', time: base, desc: '等待卖家发货', active: true }]
+  }
+  if (o.status === 'canceled') {
+    return [{ label: '订单已取消', time: base, desc: '本次交易已取消', active: false }]
   }
   const H = 3600 * 1000
   const received = o.status === 'completed'

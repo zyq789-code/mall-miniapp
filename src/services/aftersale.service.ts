@@ -9,3 +9,4 @@ function assertState(a: AfterSale, expected: AfterSale['status']) {
 export function approve(a: AfterSale): AfterSale { assertState(a, 'pending'); return { ...a, status: 'approved' } }
 export function refund(a: AfterSale): AfterSale { assertState(a, 'approved'); return { ...a, status: 'refunded' } }
 export function reject(a: AfterSale): AfterSale { assertState(a, 'pending'); return { ...a, status: 'rejected' } }
+export function reappeal(a: AfterSale): AfterSale { assertState(a, 'rejected'); return { ...a, status: 'pending' } }

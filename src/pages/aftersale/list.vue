@@ -5,7 +5,8 @@ import type { AfterSale } from '../../models/aftersale'
 import { getOrder } from '../../api/order.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatTime } from '../../utils/format'
-import { approve, refund, reject } from '../../services/aftersale.service'
+import { approve, refund, reject, reappeal } from '../../services/aftersale.service'
+import { BusinessError } from '../../utils/errors'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -31,14 +32,15 @@ function run(a: AfterSale, updater: (x: AfterSale) => AfterSale) {
   try {
     update(a.id, updater)
     uni.showToast({ title: '操作成功', icon: 'none' })
-  } catch {
-    uni.showToast({ title: '当前状态不可操作', icon: 'none' })
+  } catch (e) {
+    if (e instanceof BusinessError) uni.showToast({ title: '当前状态不可操作', icon: 'none' })
+    else throw e
   }
 }
 const onApprove = (a: AfterSale) => run(a, approve)
 const onRefund = (a: AfterSale) => run(a, refund)
 const onReject = (a: AfterSale) => run(a, reject)
-const onReappeal = (a: AfterSale) => update(a.id, x => ({ ...x, status: 'pending', applyTime: Date.now() }))
+const onReappeal = (a: AfterSale) => run(a, x => ({ ...reappeal(x), applyTime: Date.now() }))
 const orderNoOf = (orderId: string) => getOrder(orderId)?.orderNo ?? '—'
 </script>
 <template>
