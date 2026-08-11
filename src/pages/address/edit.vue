@@ -28,9 +28,12 @@ function save() {
   if (!f.detail.trim()) return uni.showToast({ title: '请填写详细地址', icon: 'none' })
   const list = storage.get<Address[]>(KEYS.addresses, [])
   if (f.id) {
+    const original = list.find(a => a.id === f.id)
+    const keepDefault = original?.isDefault && !f.isDefault && !list.some(a => a.id !== f.id && a.isDefault)
+    const isDefault = keepDefault ? true : f.isDefault
     const next = list.map(a => {
-      if (a.id !== f.id) return f.isDefault ? { ...a, isDefault: false } : a
-      return { ...f, phone: f.phone.trim(), region: f.region.trim(), detail: f.detail.trim() }
+      if (a.id !== f.id) return isDefault ? { ...a, isDefault: false } : a
+      return { ...f, name: f.name.trim(), phone: f.phone.trim(), region: f.region.trim(), detail: f.detail.trim(), isDefault }
     })
     storage.set(KEYS.addresses, next)
   } else {
