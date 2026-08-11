@@ -22,7 +22,7 @@ const progress = computed<ProgressInfo>(() => {
   if (!nextExists.value) return { pct: 100, label: '已是最高等级' }
   const cur = LEVEL_THRESHOLDS[level.value]
   const next = LEVEL_THRESHOLDS[level.value + 1]
-  const pct = Math.min(100, Math.round(((spent - cur) / (next - cur)) * 100))
+  const pct = Math.min(100, Math.floor(((spent - cur) / (next - cur)) * 100))
   return { pct, label: spent >= next ? '即将升级' : `再消费 ${formatPrice(next - spent)} 升级` }
 })
 

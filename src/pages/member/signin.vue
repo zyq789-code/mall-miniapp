@@ -9,24 +9,26 @@ import { todayKey } from '../../utils/format'
 const SIGN_POINTS = 10
 const user = ref<Member>()
 const lastDay = ref('')
+const today = ref(todayKey(Date.now()))
 onShow(() => {
+  today.value = todayKey(Date.now())
   user.value = storage.get<Member | null>(KEYS.user, null) ?? undefined
   lastDay.value = storage.get<string>(KEYS.lastSignDay, '')
 })
 
-const today = todayKey(Date.now())
-const signed = computed(() => !!user.value && !canSignIn(lastDay.value, today))
+const signed = computed(() => !!user.value && !canSignIn(lastDay.value, today.value))
 
 function onSign(): void {
   if (!user.value) {
     uni.navigateTo({ url: '/pages/user/login' })
     return
   }
+  if (!canSignIn(lastDay.value, today.value)) return
   const next: Member = { ...user.value, points: user.value.points + SIGN_POINTS }
   storage.set(KEYS.user, next)
-  storage.set(KEYS.lastSignDay, today)
+  storage.set(KEYS.lastSignDay, today.value)
   user.value = next
-  lastDay.value = today
+  lastDay.value = today.value
   uni.showToast({ title: `签到成功 +${SIGN_POINTS}`, icon: 'success' })
 }
 </script>

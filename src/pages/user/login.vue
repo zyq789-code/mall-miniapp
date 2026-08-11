@@ -16,7 +16,6 @@ function onLogin(): void {
     id: 'u' + Date.now(),
     nickname: trimmed.value,
     avatar: avatarText.value,
-    level: 0,
     points: 0,
     totalSpent: 0,
   }

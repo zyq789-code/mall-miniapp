@@ -21,8 +21,9 @@ const rows = computed<LevelRow[]>(() =>
 
 const progress = computed(() => {
   if (!nextExists.value) return { pct: 100, label: '已达成最高等级' }
+  const cur = LEVEL_THRESHOLDS[current.value]
   const next = LEVEL_THRESHOLDS[current.value + 1]
-  const pct = Math.min(100, Math.round((spent.value / next) * 100))
+  const pct = Math.min(100, Math.floor(((spent.value - cur) / (next - cur)) * 100))
   return { pct, label: `再消费 ${formatPrice(next - spent.value)} 即可升级` }
 })
 </script>
