@@ -5,10 +5,10 @@ import { calcOrderAmounts, pay, cancel, ship, receive, isExpired, canApplyAfterS
 
 const item: OrderItem = { goodsId: 'g', skuId: 's', name: 'x', image: '', spec: 'a', price: 10000, quantity: 2 }
 const addr: Address = { id: 'a', name: 'n', phone: '1', region: 'r', detail: 'd', isDefault: true }
-const order = (status: Order['status'], t = 0): Order => ({
+const order = (status: Order['status'], t = 0, over: Partial<Order> = {}): Order => ({
   id: 'o', orderNo: 'n', status, items: [item], totalAmount: 20000,
   couponDeduction: 0, pointsDeduction: 0, freight: 0, payAmount: 20000, address: addr,
-  createTime: t, payTime: undefined, shipTime: undefined, receiveTime: undefined,
+  createTime: t, payTime: undefined, shipTime: undefined, receiveTime: undefined, ...over,
 })
 
 describe('order', () => {
@@ -35,10 +35,21 @@ describe('order', () => {
     expect(isExpired(order('pending_pay', 0), ORDER_TIMEOUT_MS + 1)).toBe(true)
     expect(isExpired(order('pending_ship', 0), ORDER_TIMEOUT_MS + 1)).toBe(false)
   })
+  it('超时边界：恰好15分钟不算超时', () => {
+    expect(isExpired(order('pending_pay', 0), ORDER_TIMEOUT_MS)).toBe(false)
+  })
   it('售后资格：待收货/已完成且7天内', () => {
     expect(canApplyAfterSale(order('pending_receive', 0), 3600 * 1000)).toBe(true)
     expect(canApplyAfterSale(order('completed', 0), 8 * 24 * 3600 * 1000)).toBe(false)
     expect(canApplyAfterSale(order('pending_pay', 0), 1000)).toBe(false)
+  })
+  it('售后资格按 shipTime/receiveTime 起算', () => {
+    const shipOrder = order('pending_receive', 0, { shipTime: 100 })
+    expect(canApplyAfterSale(shipOrder, 100 + 6 * 24 * 3600 * 1000)).toBe(true)
+    expect(canApplyAfterSale(shipOrder, 100 + 7 * 24 * 3600 * 1000)).toBe(false)  // 恰好7天不满足
+    const recvOrder = order('completed', 0, { receiveTime: 100 })
+    expect(canApplyAfterSale(recvOrder, 100 + 3 * 24 * 3600 * 1000)).toBe(true)
+    expect(canApplyAfterSale(recvOrder, 100 + 7 * 24 * 3600 * 1000)).toBe(false)
   })
   it('genOrderNo 格式', () => { expect(genOrderNo(1000)).toMatch(/^1000\d{1,}$/) })
 })

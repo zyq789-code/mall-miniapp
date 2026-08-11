@@ -5,7 +5,7 @@ import { calcFreight } from '../utils/format'
 export const ORDER_TIMEOUT_MS = 15 * 60 * 1000
 export const AFTERSALE_DAYS_MS = 7 * 24 * 3600 * 1000
 
-export function calcOrderAmounts(items: OrderItem[], couponDeduction: number, pointsDeduction: number) {
+export function calcOrderAmounts(items: OrderItem[], couponDeduction: number, pointsDeduction: number): { totalAmount: number; freight: number; payAmount: number } {
   const totalAmount = items.reduce((s, it) => s + it.price * it.quantity, 0)
   const freight = calcFreight(totalAmount)
   const payAmount = Math.max(0, totalAmount - couponDeduction - pointsDeduction + freight)
