@@ -13,9 +13,13 @@ describe('cart', () => {
     const list = [c('g1', 's1')]
     const r = addToCart(list, c('g1', 's2'))
     expect(r).toHaveLength(2); expect(list).toHaveLength(1)
+    expect(r[0]).toBe(list[0])   // 未命中项保持原引用，证明 immutable
   })
   it('updateQuantity 修改数量', () => {
     expect(updateQuantity([c('g1', 's1', 2)], 'g1', 's1', 5)[0].quantity).toBe(5)
+  })
+  it('updateQuantity 数量下限钳位到 1', () => {
+    expect(updateQuantity([c('g1', 's1', 2)], 'g1', 's1', 0)[0].quantity).toBe(1)
   })
   it('toggleChecked 切换单项', () => {
     expect(toggleChecked([c('g1', 's1')], 'g1', 's1')[0].checked).toBe(false)
