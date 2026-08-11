@@ -96,6 +96,42 @@
       "style": {
         "navigationBarTitleText": "我的优惠券"
       }
+    },
+    {
+      "path": "pages/user/login",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/member/level",
+      "style": {
+        "navigationBarTitleText": "会员等级"
+      }
+    },
+    {
+      "path": "pages/member/points",
+      "style": {
+        "navigationBarTitleText": "我的积分"
+      }
+    },
+    {
+      "path": "pages/member/signin",
+      "style": {
+        "navigationBarTitleText": "每日签到"
+      }
+    },
+    {
+      "path": "pages/favorite/index",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "pages/footprint/index",
+      "style": {
+        "navigationBarTitleText": "浏览足迹"
+      }
     }
   ],
   "globalStyle": {

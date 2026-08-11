@@ -8,3 +8,4 @@ export interface Goods {
 export interface Category { id: string; name: string; children: Category[] }
 export interface Banner { id: string; image: string; goodsId?: string }
 export interface CartItem { goodsId: string; skuId: string; quantity: number; checked: boolean; addedAt: number }
+export interface FootprintItem { goodsId: string; time: number }

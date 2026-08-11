@@ -1,17 +1,40 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { Goods, Sku } from '../../models/goods'
-import { getGoods } from '../../mock/goods'
+import type { Goods, Sku, FootprintItem } from '../../models/goods'
+import { goodsRepo } from '../../api/repository'
 import { addToCart } from '../../services/cart.service'
 import { getCart, saveCart } from '../../api/cart.api'
+import { storage, KEYS } from '../../utils/storage'
 import PriceTag from '../../components/ui/PriceTag.vue'
 import SkuPopup from '../../components/ui/SkuPopup.vue'
 
 const id = ref('')
 const goods = ref<Goods>()
 const showSku = ref(false)
-onLoad((q) => { id.value = q?.id ?? ''; goods.value = getGoods(id.value) })
+const fav = ref(false)
+
+onLoad((q) => {
+  id.value = q?.id ?? ''
+  goods.value = goodsRepo.get(id.value)
+  if (!goods.value) return
+  recordFootprint(id.value)
+  fav.value = storage.get<string[]>(KEYS.favorites, []).includes(id.value)
+})
+
+function recordFootprint(goodsId: string): void {
+  const list = storage.get<FootprintItem[]>(KEYS.footprints, [])
+  const next = [{ goodsId, time: Date.now() }, ...list.filter(x => x.goodsId !== goodsId)].slice(0, 50)
+  storage.set(KEYS.footprints, next)
+}
+
+function toggleFav(): void {
+  const list = storage.get<string[]>(KEYS.favorites, [])
+  const next = fav.value ? list.filter(x => x !== id.value) : [...list, id.value]
+  storage.set(KEYS.favorites, next)
+  fav.value = !fav.value
+  uni.showToast({ title: fav.value ? '已收藏' : '已取消收藏', icon: 'none' })
+}
 
 function onConfirm(sku: Sku, quantity: number) {
   saveCart(addToCart(getCart(), { goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() }))
@@ -39,6 +62,7 @@ function buy() {
     <view class="section-t">商品详情</view>
     <view class="desc">{{ goods.desc }}</view>
     <view class="bottom-bar">
+      <view class="fav" @tap="toggleFav"><text class="heart" :class="{ on: fav }">{{ fav ? '❤' : '♡' }}</text><text class="fav-t">收藏</text></view>
       <view class="b-item" @tap="showSku = true">加入购物车</view>
       <view class="b-item primary" @tap="buy">立即购买</view>
     </view>
@@ -54,7 +78,11 @@ function buy() {
 .meta { color: $text3; font-size: 24rpx; margin-top: 12rpx; }
 .desc { padding: 24rpx; color: $text2; }
 .section-t { font-weight: 700; padding: 24rpx 24rpx 0; }
-.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; background: #fff; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); }
+.fav { display: flex; flex-direction: column; align-items: center; width: 88rpx; margin-right: 16rpx; color: $text3; }
+.heart { font-size: 44rpx; line-height: 1; }
+.heart.on { color: $price; }
+.fav-t { font-size: 20rpx; margin-top: 4rpx; }
 .b-item { flex: 1; text-align: center; padding: 20rpx 0; border-radius: $radius; background: $brand-soft; color: $brand; }
 .b-item.primary { background: $brand; color: #fff; margin-left: 16rpx; }
 </style>
