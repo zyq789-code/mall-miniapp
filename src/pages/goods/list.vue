@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
 import GoodsCard from '../../components/ui/GoodsCard.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 
 type Sort = 'sales' | 'priceAsc' | 'priceDesc'
 interface SortTab { key: Sort | ''; label: string }
@@ -20,7 +21,9 @@ const categoryId = ref('')
 const input = ref('')
 const sort = ref<Sort | ''>('')
 const list = ref<Goods[]>([])
+const loading = ref(true)
 const isSearch = computed(() => keyword.value !== '')
+let loadTimer: ReturnType<typeof setTimeout> | null = null
 
 onLoad((q) => {
   keyword.value = q?.keyword ?? ''
@@ -28,12 +31,20 @@ onLoad((q) => {
   input.value = keyword.value
   load()
 })
+onUnload(() => { if (loadTimer) { clearTimeout(loadTimer); loadTimer = null } })
 
 function load(): void {
+  loading.value = true
+  if (loadTimer) clearTimeout(loadTimer)
   const s: Sort | undefined = sort.value === '' ? undefined : sort.value
-  list.value = keyword.value
-    ? goodsRepo.search(keyword.value)
-    : goodsRepo.list({ categoryId: categoryId.value, sort: s })
+  const q = keyword.value
+  const cid = categoryId.value
+  // 模拟异步加载，让骨架屏可见；数据就绪后切到 grid / 空态
+  loadTimer = setTimeout(() => {
+    loadTimer = null
+    list.value = q ? goodsRepo.search(q) : goodsRepo.list({ categoryId: cid, sort: s })
+    loading.value = false
+  }, 300)
 }
 
 function onSearch(): void {
@@ -71,7 +82,8 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
         @tap="setSort(t.key)"
       >{{ t.label }}</view>
     </view>
-    <EmptyView v-if="!list.length" text="没有找到相关商品" />
+    <Skeleton v-if="loading" />
+    <EmptyView v-else-if="!list.length" text="没有找到相关商品" />
     <view v-else class="grid">
       <GoodsCard v-for="g in list" :key="g.id" :goods="g" @tap="goDetail" />
     </view>

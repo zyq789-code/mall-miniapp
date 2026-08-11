@@ -7,8 +7,10 @@ import { goodsRepo } from '../../api/repository'
 import { formatPrice, formatTime } from '../../utils/format'
 import { isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
 import { useOrderStore } from '../../stores/order'
+import { tryRun } from '../../utils/toast'
 import OrderStatusTabs from '../../components/ui/OrderStatusTabs.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 
 const STATUS_TEXT: Record<string, string> = {
   pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货', completed: '已完成', canceled: '已取消',
@@ -25,14 +27,24 @@ const orderStore = useOrderStore()
 const { orders } = storeToRefs(orderStore)
 const active = ref('all')
 const now = ref(Date.now())
+const loading = ref(true)
+let loadTimer: ReturnType<typeof setTimeout> | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 
-const load = () => { orderStore.sync() }
+const load = () => {
+  loading.value = true
+  if (loadTimer) clearTimeout(loadTimer)
+  loadTimer = setTimeout(() => {
+    loadTimer = null
+    orderStore.sync()
+    loading.value = false
+  }, 300)
+}
 const filtered = computed(() => (active.value === 'all' ? orders.value : orders.value.filter(o => o.status === active.value)))
 const autoCancel = () => {
   const expired = orders.value.filter(o => isExpired(o, now.value))
   if (!expired.length) return
-  expired.forEach(o => orderStore.doCancel(o))
+  expired.forEach(o => tryRun(() => orderStore.doCancel(o)))
 }
 const startTick = () => {
   if (timer) return
@@ -44,7 +56,7 @@ const startTick = () => {
 const stopTick = () => { if (timer) { clearInterval(timer); timer = null } }
 onShow(() => { load(); startTick() })
 onHide(stopTick)
-onUnload(stopTick)
+onUnload(() => { stopTick(); if (loadTimer) { clearTimeout(loadTimer); loadTimer = null } })
 
 const onTab = (key: string) => { active.value = key }
 const totalCount = (o: Order) => o.items.reduce((s, i) => s + i.quantity, 0)
@@ -58,22 +70,16 @@ const coverOf = (o: Order) => goodsRepo.get(o.items[0]?.goodsId)?.cover ?? o.ite
 const goDetail = (o: Order) => uni.navigateTo({ url: `/pages/order/detail?id=${o.id}` })
 const goPay = (o: Order) => uni.navigateTo({ url: `/pages/order/pay?id=${o.id}` })
 
-function act(action: () => void) {
-  try {
-    action()
-  } catch {
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
-}
-const onCancel = (o: Order) => act(() => orderStore.doCancel(o))
-const onShip = (o: Order) => act(() => orderStore.doShip(o))
-const onReceive = (o: Order) => act(() => orderStore.doReceive(o))
+const onCancel = (o: Order) => tryRun(() => orderStore.doCancel(o))
+const onShip = (o: Order) => tryRun(() => orderStore.doShip(o))
+const onReceive = (o: Order) => tryRun(() => orderStore.doReceive(o))
 const onDelete = (o: Order) => orderStore.remove(o.id)
 </script>
 <template>
   <view class="page">
     <OrderStatusTabs :tabs="TABS" :active="active" @change="onTab" />
-    <EmptyView v-if="!filtered.length" text="暂无订单" />
+    <Skeleton v-if="loading" />
+    <EmptyView v-else-if="!filtered.length" text="暂无订单" />
     <view v-for="o in filtered" :key="o.id" class="card" @tap="goDetail(o)">
       <view class="head">
         <text class="no">订单号 {{ o.orderNo }}</text>

@@ -7,6 +7,7 @@ import { canSignIn } from '../../services/points.service'
 import { storage, KEYS } from '../../utils/storage'
 import { todayKey } from '../../utils/format'
 import { useUserStore } from '../../stores/user'
+import { tryRun } from '../../utils/toast'
 
 const SIGN_POINTS = 10
 const userStore = useUserStore()
@@ -28,10 +29,12 @@ function onSign(): void {
     return
   }
   if (!canSignIn(lastDay.value, today.value)) return
-  userStore.addPoints(SIGN_POINTS)
-  storage.set(KEYS.lastSignDay, today.value)
-  lastDay.value = today.value
-  uni.showToast({ title: `签到成功 +${SIGN_POINTS}`, icon: 'success' })
+  tryRun(() => {
+    userStore.addPoints(SIGN_POINTS)
+    storage.set(KEYS.lastSignDay, today.value)
+    lastDay.value = today.value
+    uni.showToast({ title: `签到成功 +${SIGN_POINTS}`, icon: 'success' })
+  })
 }
 </script>
 <template>

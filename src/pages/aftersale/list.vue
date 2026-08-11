@@ -6,7 +6,7 @@ import { getOrder } from '../../api/order.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatTime } from '../../utils/format'
 import { approve, refund, reject, reappeal } from '../../services/aftersale.service'
-import { BusinessError } from '../../utils/errors'
+import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -29,13 +29,10 @@ function update(id: string, updater: (a: AfterSale) => AfterSale) {
   load()
 }
 function run(a: AfterSale, updater: (x: AfterSale) => AfterSale) {
-  try {
+  tryRun(() => {
     update(a.id, updater)
     uni.showToast({ title: '操作成功', icon: 'none' })
-  } catch (e) {
-    if (e instanceof BusinessError) uni.showToast({ title: '当前状态不可操作', icon: 'none' })
-    else throw e
-  }
+  })
 }
 const onApprove = (a: AfterSale) => run(a, approve)
 const onRefund = (a: AfterSale) => run(a, refund)

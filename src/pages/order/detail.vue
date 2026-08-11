@@ -5,6 +5,7 @@ import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
 import { formatPrice, formatTime } from '../../utils/format'
 import { useOrderStore } from '../../stores/order'
+import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -26,12 +27,10 @@ function reload() { order.value = orderStore.orders.find(o => o.id === id.value)
 function act(updater: (o: Order) => void) {
   const o = order.value
   if (!o) return
-  try {
+  tryRun(() => {
     updater(o)
     reload()
-  } catch {
-    uni.showToast({ title: '操作失败', icon: 'none' })
-  }
+  })
 }
 const onPay = () => uni.navigateTo({ url: `/pages/order/pay?id=${id.value}` })
 const onCancel = () => act(o => orderStore.doCancel(o))
