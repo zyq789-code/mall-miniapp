@@ -47,6 +47,7 @@ function buy() {
   saveCart(addToCart(getCart(), { goodsId: goods.value.id, skuId: sku.id, quantity: 1, checked: true, addedAt: Date.now() }))
   uni.navigateTo({ url: '/pages/order/confirm' })
 }
+const goReviews = () => uni.navigateTo({ url: `/pages/review/list?goodsId=${id.value}` })
 </script>
 <template>
   <view v-if="goods" class="page">
@@ -59,6 +60,7 @@ function buy() {
       <view class="sub">{{ goods.subtitle }}</view>
       <view class="meta"><text>已售 {{ goods.sales }}</text><text>库存 {{ goods.stock }}</text></view>
     </view>
+    <view class="review-link" @tap="goReviews">商品评价 ›</view>
     <view class="section-t">商品详情</view>
     <view class="desc">{{ goods.desc }}</view>
     <view class="bottom-bar">
@@ -76,6 +78,7 @@ function buy() {
 .name { font-size: 36rpx; font-weight: 700; margin: 12rpx 0; }
 .sub { color: $text2; }
 .meta { color: $text3; font-size: 24rpx; margin-top: 12rpx; }
+.review-link { background: #fff; margin-top: 16rpx; padding: 20rpx 24rpx; color: $brand; font-size: 28rpx; }
 .desc { padding: 24rpx; color: $text2; }
 .section-t { font-weight: 700; padding: 24rpx 24rpx 0; }
 .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; background: #fff; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); }

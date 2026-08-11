@@ -132,6 +132,36 @@
       "style": {
         "navigationBarTitleText": "浏览足迹"
       }
+    },
+    {
+      "path": "pages/aftersale/apply",
+      "style": {
+        "navigationBarTitleText": "申请售后"
+      }
+    },
+    {
+      "path": "pages/aftersale/list",
+      "style": {
+        "navigationBarTitleText": "售后/退款"
+      }
+    },
+    {
+      "path": "pages/logistics/index",
+      "style": {
+        "navigationBarTitleText": "物流跟踪"
+      }
+    },
+    {
+      "path": "pages/review/write",
+      "style": {
+        "navigationBarTitleText": "写评价"
+      }
+    },
+    {
+      "path": "pages/review/list",
+      "style": {
+        "navigationBarTitleText": "商品评价"
+      }
     }
   ],
   "globalStyle": {
