@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { listGoods, searchGoods } from '../src/mock/goods'
+import { listGoods, searchGoods, collectCategoryIds } from '../src/mock/goods'
 import { upsertOrder, getOrders } from '../src/api/order.api'
 import type { Address } from '../src/models/order'
 import type { Order } from '../src/models/order'
@@ -12,6 +12,16 @@ describe('mock goods', () => {
     expect(asc[0].price).toBeLessThanOrEqual(asc[1].price)
     const desc = listGoods(undefined, 'priceDesc')
     expect(desc[0].price).toBeGreaterThanOrEqual(desc[1].price)
+  })
+  it('collectCategoryIds 展开一级分类到后代', () => {
+    expect(collectCategoryIds('c1')).toEqual(['c1', 'c11'])
+    expect(collectCategoryIds('c11')).toEqual(['c11'])
+  })
+  it('一级分类筛选可命中叶子商品', () => {
+    const phones = listGoods('c1')
+    expect(phones.length).toBeGreaterThan(0)
+    expect(phones.every(g => collectCategoryIds('c1').includes(g.categoryId))).toBe(true)
+    expect(phones.map(g => g.id)).toContain('g1')
   })
   it('搜索去空格大小写命中', () => {
     expect(searchGoods('  手机 ')).toHaveLength(1)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
@@ -20,6 +20,7 @@ const categoryId = ref('')
 const input = ref('')
 const sort = ref<Sort | ''>('')
 const list = ref<Goods[]>([])
+const isSearch = computed(() => keyword.value !== '')
 
 onLoad((q) => {
   keyword.value = q?.keyword ?? ''
@@ -42,6 +43,7 @@ function onSearch(): void {
 }
 
 function setSort(key: Sort | ''): void {
+  if (isSearch.value) return
   sort.value = key
   load()
 }
@@ -65,7 +67,7 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
         v-for="t in sortTabs"
         :key="t.label"
         class="sort-tab"
-        :class="{ active: sort === t.key }"
+        :class="{ active: !isSearch && sort === t.key, disabled: isSearch }"
         @tap="setSort(t.key)"
       >{{ t.label }}</view>
     </view>
@@ -115,6 +117,9 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
 .sort-tab.active {
   color: $brand;
   font-weight: 600;
+}
+.sort-tab.disabled {
+  color: $text3;
 }
 .grid {
   display: flex;

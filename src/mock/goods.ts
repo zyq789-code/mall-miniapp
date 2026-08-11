@@ -34,8 +34,20 @@ export function searchGoods(keyword: string): Goods[] {
   const k = keyword.trim().toLowerCase()
   return goods.filter(g => g.name.toLowerCase().includes(k) || g.subtitle.toLowerCase().includes(k))
 }
+export function collectCategoryIds(categoryId: string): string[] {
+  const ids: string[] = []
+  const walk = (node: Category) => {
+    ids.push(node.id)
+    node.children.forEach(walk)
+  }
+  const root = categories.find(c => c.id === categoryId)
+  if (root) walk(root)
+  else ids.push(categoryId)
+  return ids
+}
 export function listGoods(categoryId?: string, sort?: 'sales' | 'priceAsc' | 'priceDesc'): Goods[] {
-  let r = categoryId ? goods.filter(g => g.categoryId === categoryId) : [...goods]
+  const ids = categoryId ? collectCategoryIds(categoryId) : undefined
+  let r = ids ? goods.filter(g => ids.includes(g.categoryId)) : [...goods]
   if (sort === 'sales') r.sort((a, b) => b.sales - a.sales)
   if (sort === 'priceAsc') r.sort((a, b) => a.price - b.price)
   if (sort === 'priceDesc') r.sort((a, b) => b.price - a.price)

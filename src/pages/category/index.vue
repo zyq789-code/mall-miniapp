@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Category, Goods } from '../../models/goods'
+import type { Goods } from '../../models/goods'
 import { categories } from '../../mock/goods'
 import { goodsRepo } from '../../api/repository'
 import GoodsCard from '../../components/ui/GoodsCard.vue'
@@ -8,13 +8,7 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 
 const activeId = ref(categories[0]?.id ?? '')
 
-const goods = computed<Goods[]>(() => {
-  const ids = new Set<string>()
-  const walk = (c: Category) => { ids.add(c.id); c.children.forEach(walk) }
-  const cat = categories.find(c => c.id === activeId.value)
-  if (cat) walk(cat)
-  return goodsRepo.list().filter(g => ids.has(g.categoryId))
-})
+const goods = computed<Goods[]>(() => goodsRepo.list({ categoryId: activeId.value }))
 
 const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
 </script>
