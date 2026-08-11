@@ -19,6 +19,7 @@ function assertStatus(order: Order, expected: Order['status'], code: string) {
 }
 export function pay(order: Order, now: number): Order {
   assertStatus(order, 'pending_pay', ERR.ORDER_NOT_PAYABLE)
+  if (isExpired(order, now)) throw new BusinessError(ERR.ORDER_EXPIRED, '订单已超时，请重新下单')
   return { ...order, status: 'pending_ship', payTime: now }
 }
 export function cancel(order: Order): Order {

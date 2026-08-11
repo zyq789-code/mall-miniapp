@@ -21,6 +21,9 @@ describe('order', () => {
     expect(pay(order('pending_pay'), 100).status).toBe('pending_ship')
     expect(() => pay(order('canceled'), 100)).toThrow(BusinessError)
   })
+  it('pay 拒绝超时订单', () => {
+    expect(() => pay(order('pending_pay', 0), ORDER_TIMEOUT_MS + 1)).toThrow(BusinessError)
+  })
   it('cancel 只允许待付款', () => {
     expect(cancel(order('pending_pay')).status).toBe('canceled')
     expect(() => cancel(order('pending_ship'))).toThrow(BusinessError)

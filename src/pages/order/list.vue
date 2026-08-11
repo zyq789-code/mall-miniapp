@@ -5,7 +5,7 @@ import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
 import { getOrders, saveOrders, upsertOrder } from '../../api/order.api'
 import { formatPrice, formatTime } from '../../utils/format'
-import { cancel, ship, receive, ORDER_TIMEOUT_MS } from '../../services/order.service'
+import { cancel, ship, receive, isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
 import OrderStatusTabs from '../../components/ui/OrderStatusTabs.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
@@ -27,9 +27,18 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 const load = () => { list.value = getOrders() }
 const filtered = computed(() => (active.value === 'all' ? list.value : list.value.filter(o => o.status === active.value)))
+const autoCancel = () => {
+  const expired = list.value.filter(o => isExpired(o, now.value))
+  if (!expired.length) return
+  expired.forEach(o => upsertOrder(cancel(o)))
+  load()
+}
 const startTick = () => {
   if (timer) return
-  timer = setInterval(() => { now.value = Date.now() }, 1000)
+  timer = setInterval(() => {
+    now.value = Date.now()
+    autoCancel()
+  }, 1000)
 }
 const stopTick = () => { if (timer) { clearInterval(timer); timer = null } }
 onShow(() => { load(); startTick() })

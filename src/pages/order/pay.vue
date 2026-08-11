@@ -16,7 +16,10 @@ onLoad((q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
   order.value = getOrder(id.value) ?? null
 })
-onUnload(() => { if (timer) { clearTimeout(timer); timer = null } })
+onUnload(() => {
+  if (timer) { clearTimeout(timer); timer = null }
+  uni.hideLoading()
+})
 
 function doPay() {
   const o = order.value
