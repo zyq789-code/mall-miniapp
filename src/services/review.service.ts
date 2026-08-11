@@ -6,6 +6,6 @@ export function validateReview(r: { stars: number; content: string }): string | 
   if (r.content.length > 500) return '评价内容不能超过 500 字'
   return null
 }
-export function assertCanReview(order: Order) {
+export function assertCanReview(order: Order): void {
   if (!canReview(order)) throw new BusinessError(ERR.REVIEW_INVALID, '当前订单不可评价')
 }
