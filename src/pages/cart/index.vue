@@ -32,13 +32,14 @@ const checkout = () => {
     <EmptyView v-if="!list.length" text="购物车还是空的" />
     <template v-else>
       <view v-for="it in list" :key="it.goodsId + it.skuId" class="item card">
-        <view class="check" :class="{ on: it.checked }" @tap="onToggle(it.goodsId, it.skuId)">✓</view>
+        <view class="check" :class="{ on: it.checked }" @tap="onToggle(it.goodsId, it.skuId)">{{ it.checked ? '✓' : '' }}</view>
         <image :src="goodsOf(it.goodsId)?.cover" class="pic" mode="aspectFill" />
         <view class="mid">
           <view class="name">{{ goodsOf(it.goodsId)?.name }}</view>
           <view class="spec">{{ goodsOf(it.goodsId)?.skus.find(s => s.id === it.skuId)?.spec }}</view>
           <view class="row"><text class="price">{{ formatPrice(skuPrice(it.goodsId, it.skuId)) }}</text><Stepper :model-value="it.quantity" :max="goodsOf(it.goodsId)?.skus.find(s => s.id === it.skuId)?.stock || 99" @update:model-value="q => onQty(it.goodsId, it.skuId, q)" /></view>
         </view>
+        <view class="del" @tap="onRemove(it.goodsId, it.skuId)">删除</view>
       </view>
       <view class="bar">
         <view class="check-all" :class="{ on: allChecked }" @tap="onToggleAll">✓ 全选</view>
@@ -49,6 +50,7 @@ const checkout = () => {
   </view>
 </template>
 <style scoped lang="scss">
+.page { padding-bottom: 140rpx; }
 .item { display: flex; align-items: center; padding: 20rpx; margin: 16rpx; }
 .check { width: 44rpx; height: 44rpx; border-radius: 50%; border: 2rpx solid $text3; margin-right: 16rpx; text-align: center; line-height: 40rpx; color: #fff; }
 .check.on { background: $brand; border-color: $brand; }
@@ -58,7 +60,9 @@ const checkout = () => {
 .spec { color: $text3; font-size: 24rpx; margin: 8rpx 0; }
 .row { display: flex; justify-content: space-between; align-items: center; }
 .price { color: $price; font-weight: 700; }
-.bar { position: fixed; bottom: 0; left: 0; right: 0; background: $card; display: flex; align-items: center; padding: 16rpx 24rpx; }
+.del { color: $text3; font-size: 24rpx; padding: 8rpx 0 8rpx 16rpx; }
+.bar { position: fixed; bottom: 0; left: 0; right: 0; background: $card; display: flex; align-items: center; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); }
+.check-all.on { color: $brand; font-weight: 600; }
 .checkout { background: $brand; color: #fff; padding: 20rpx 60rpx; border-radius: $radius; }
 .total { flex: 1; text-align: right; margin-right: 20rpx; color: $price; font-weight: 700; }
 </style>
