@@ -10,6 +10,7 @@ describe('points', () => {
     expect(calcPointsDeduction(500, 500)).toBe(100)          // 20%上限=100，不超实付
   })
   it('按实付返积分', () => { expect(earnBySpend(12345, 1)).toBe(123) })
+  it('小数返积比例取整', () => { expect(earnBySpend(12345, 1.5)).toBe(185) })
   it('签到当天幂等', () => {
     expect(canSignIn('2026-08-11', '2026-08-11')).toBe(false)
     expect(canSignIn('2026-08-10', '2026-08-11')).toBe(true)

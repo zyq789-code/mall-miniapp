@@ -5,7 +5,7 @@ export function calcPointsDeduction(points: number, payAmount: number, maxRatio 
   return Math.max(0, Math.min(byPoints, maxDeduct, payAmount))
 }
 export function earnBySpend(payAmount: number, pointsPerYuan = 1): number {
-  return Math.floor(payAmount / 100) * pointsPerYuan
+  return Math.floor((payAmount / 100) * pointsPerYuan)
 }
 export function canSignIn(lastDay: string, today: string): boolean {
   return lastDay !== today
