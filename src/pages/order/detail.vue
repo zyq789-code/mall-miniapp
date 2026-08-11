@@ -3,9 +3,8 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
-import { getOrder, upsertOrder } from '../../api/order.api'
 import { formatPrice, formatTime } from '../../utils/format'
-import { cancel, pay, ship, receive } from '../../services/order.service'
+import { useOrderStore } from '../../stores/order'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -15,28 +14,29 @@ const HINT_TEXT: Record<string, string> = {
   pending_pay: '等待买家付款', pending_ship: '付款成功，等待卖家发货', pending_receive: '卖家已发货，等待确认收货', completed: '交易已完成，感谢您的购买', canceled: '订单已取消',
 }
 
+const orderStore = useOrderStore()
 const order = ref<Order | null>(null)
 const id = ref('')
 
 onLoad((q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
-  order.value = getOrder(id.value) ?? null
+  order.value = orderStore.orders.find(o => o.id === id.value) ?? null
 })
-function reload() { order.value = getOrder(id.value) ?? null }
-function act(updater: (o: Order) => Order) {
+function reload() { order.value = orderStore.orders.find(o => o.id === id.value) ?? null }
+function act(updater: (o: Order) => void) {
   const o = order.value
   if (!o) return
   try {
-    upsertOrder(updater(o))
+    updater(o)
     reload()
   } catch {
     uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
 const onPay = () => uni.navigateTo({ url: `/pages/order/pay?id=${id.value}` })
-const onCancel = () => act(cancel)
-const onShip = () => act(o => ship(o, Date.now()))
-const onReceive = () => act(o => receive(o, Date.now()))
+const onCancel = () => act(o => orderStore.doCancel(o))
+const onShip = () => act(o => orderStore.doShip(o))
+const onReceive = () => act(o => orderStore.doReceive(o))
 const goWriteReview = () => uni.navigateTo({ url: `/pages/review/write?orderId=${id.value}` })
 const goApplyAfterSale = () => uni.navigateTo({ url: `/pages/aftersale/apply?orderId=${id.value}` })
 const goLogistics = () => uni.navigateTo({ url: `/pages/logistics/index?orderId=${id.value}` })

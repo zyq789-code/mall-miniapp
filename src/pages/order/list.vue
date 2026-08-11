@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onHide, onShow, onUnload } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
-import { getOrders, saveOrders, upsertOrder } from '../../api/order.api'
+import { getOrders, saveOrders } from '../../api/order.api'
 import { formatPrice, formatTime } from '../../utils/format'
-import { cancel, ship, receive, isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
+import { isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
+import { useOrderStore } from '../../stores/order'
 import OrderStatusTabs from '../../components/ui/OrderStatusTabs.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
@@ -20,18 +22,18 @@ const TABS = [
   { key: 'completed', label: '已完成' },
 ]
 
+const orderStore = useOrderStore()
+const { orders } = storeToRefs(orderStore)
 const active = ref('all')
-const list = ref<Order[]>([])
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | null = null
 
-const load = () => { list.value = getOrders() }
-const filtered = computed(() => (active.value === 'all' ? list.value : list.value.filter(o => o.status === active.value)))
+const load = () => { orderStore.sync() }
+const filtered = computed(() => (active.value === 'all' ? orders.value : orders.value.filter(o => o.status === active.value)))
 const autoCancel = () => {
-  const expired = list.value.filter(o => isExpired(o, now.value))
+  const expired = orders.value.filter(o => isExpired(o, now.value))
   if (!expired.length) return
-  expired.forEach(o => upsertOrder(cancel(o)))
-  load()
+  expired.forEach(o => orderStore.doCancel(o))
 }
 const startTick = () => {
   if (timer) return
@@ -57,20 +59,19 @@ const coverOf = (o: Order) => goodsRepo.get(o.items[0]?.goodsId)?.cover ?? o.ite
 const goDetail = (o: Order) => uni.navigateTo({ url: `/pages/order/detail?id=${o.id}` })
 const goPay = (o: Order) => uni.navigateTo({ url: `/pages/order/pay?id=${o.id}` })
 
-function run(o: Order, updater: (x: Order) => Order) {
+function act(action: () => void) {
   try {
-    upsertOrder(updater(o))
-    load()
+    action()
   } catch {
     uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
-const onCancel = (o: Order) => run(o, cancel)
-const onShip = (o: Order) => run(o, x => ship(x, Date.now()))
-const onReceive = (o: Order) => run(o, x => receive(x, Date.now()))
+const onCancel = (o: Order) => act(() => orderStore.doCancel(o))
+const onShip = (o: Order) => act(() => orderStore.doShip(o))
+const onReceive = (o: Order) => act(() => orderStore.doReceive(o))
 const onDelete = (o: Order) => {
   saveOrders(getOrders().filter(x => x.id !== o.id))
-  load()
+  orderStore.sync()
 }
 </script>
 <template>

@@ -1,38 +1,45 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
 import type { OrderItem, Address } from '../../models/order'
 import type { UserCoupon } from '../../models/coupon'
-import type { Member } from '../../models/member'
 import { goodsRepo } from '../../api/repository'
-import { getCart, saveCart } from '../../api/cart.api'
-import { getCoupons } from '../../api/coupon.api'
-import { upsertOrder } from '../../api/order.api'
+import { getCoupons, saveCoupons } from '../../api/coupon.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatPrice } from '../../utils/format'
+import { useCartStore } from '../../stores/cart'
+import { useOrderStore } from '../../stores/order'
+import { useUserStore } from '../../stores/user'
 import { calcCouponDiscount, getUsableCoupons } from '../../services/coupon.service'
 import { calcPointsDeduction } from '../../services/points.service'
 import { calcOrderAmounts, genOrderNo } from '../../services/order.service'
 
-const items = ref<OrderItem[]>([])
-const userCoupons = ref<UserCoupon[]>([])
-const selectedCoupon = ref('')
-const usePoints = ref(true)
-const points = ref(0)
-const submitting = ref(false)
-const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.addresses, []).find(a => a.isDefault))
+const cart = useCartStore()
+const orderStore = useOrderStore()
+const userStore = useUserStore()
+const { list: cartList } = storeToRefs(cart)
+const { member } = storeToRefs(userStore)
 
-onShow(() => {
-  const cart = getCart().filter(i => i.checked)
-  items.value = cart.map(i => {
+const items = computed<OrderItem[]>(() =>
+  cartList.value.filter(i => i.checked).map(i => {
     const g = goodsRepo.get(i.goodsId)
     if (!g) return null
     const sku = g.skus.find(s => s.id === i.skuId)
     if (!sku) return null
     return { goodsId: g.id, skuId: sku.id, name: g.name, image: g.cover, spec: sku.spec, price: sku.price, quantity: i.quantity }
-  }).filter((x): x is OrderItem => x !== null)
+  }).filter((x): x is OrderItem => x !== null),
+)
+const userCoupons = ref<UserCoupon[]>([])
+const selectedCoupon = ref('')
+const usePoints = ref(true)
+const points = computed(() => member.value.points)
+const submitting = ref(false)
+const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.addresses, []).find(a => a.isDefault))
+
+onShow(() => {
+  cart.sync()
   userCoupons.value = getCoupons()
-  points.value = storage.get<Member | null>(KEYS.user, null)?.points ?? 0
   // 一次性回传：券列表选择后写入 selectedCoupon
   const sel = storage.get<string>(KEYS.selectedCoupon, '')
   if (sel) { selectedCoupon.value = sel; storage.remove(KEYS.selectedCoupon) }
@@ -62,8 +69,15 @@ function submit() {
     totalAmount: amounts.value.totalAmount, couponDeduction: couponDeduction.value, pointsDeduction: pointsDeduction.value,
     freight: amounts.value.freight, payAmount: amounts.value.payAmount, address: address.value, createTime: now,
   }
-  upsertOrder(order)
-  saveCart(getCart().filter(x => !items.value.some(i => i.goodsId === x.goodsId && i.skuId === x.skuId)))
+  // 用券：把选中券标记为已用
+  const usedCoupon = coupon.value
+  if (usedCoupon) {
+    saveCoupons(getCoupons().map(c => (c.id === usedCoupon.id ? { ...c, status: 'used' as const } : c)))
+  }
+  // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）
+  if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
+  orderStore.create(order)
+  cart.removeBatch(items.value)
   uni.redirectTo({
     url: `/pages/order/pay?id=${order.id}`,
     fail: () => { submitting.value = false },

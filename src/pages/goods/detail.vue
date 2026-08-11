@@ -3,8 +3,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Goods, Sku, FootprintItem } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
-import { addToCart } from '../../services/cart.service'
-import { getCart, saveCart } from '../../api/cart.api'
+import { useCartStore } from '../../stores/cart'
 import { storage, KEYS } from '../../utils/storage'
 import PriceTag from '../../components/ui/PriceTag.vue'
 import SkuPopup from '../../components/ui/SkuPopup.vue'
@@ -13,6 +12,7 @@ const id = ref('')
 const goods = ref<Goods>()
 const showSku = ref(false)
 const fav = ref(false)
+const cartStore = useCartStore()
 
 onLoad((q) => {
   id.value = q?.id ?? ''
@@ -37,14 +37,14 @@ function toggleFav(): void {
 }
 
 function onConfirm(sku: Sku, quantity: number) {
-  saveCart(addToCart(getCart(), { goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() }))
+  cartStore.add({ goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() })
   uni.showToast({ title: '已加入购物车', icon: 'success' })
   showSku.value = false
 }
 function buy() {
   if (!goods.value?.skus.length) return
   const sku = goods.value.skus[0]
-  saveCart(addToCart(getCart(), { goodsId: goods.value.id, skuId: sku.id, quantity: 1, checked: true, addedAt: Date.now() }))
+  cartStore.add({ goodsId: goods.value.id, skuId: sku.id, quantity: 1, checked: true, addedAt: Date.now() })
   uni.navigateTo({ url: '/pages/order/confirm' })
 }
 const goReviews = () => uni.navigateTo({ url: `/pages/review/list?goodsId=${id.value}` })

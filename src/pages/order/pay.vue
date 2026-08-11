@@ -2,11 +2,14 @@
 import { ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
-import { getOrder, upsertOrder } from '../../api/order.api'
+import { useOrderStore } from '../../stores/order'
+import { useUserStore } from '../../stores/user'
 import { formatPrice, formatTime } from '../../utils/format'
-import { pay } from '../../services/order.service'
+import { earnBySpend } from '../../services/points.service'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
+const orderStore = useOrderStore()
+const userStore = useUserStore()
 const order = ref<Order | null>(null)
 const paying = ref(false)
 const id = ref('')
@@ -14,7 +17,7 @@ let timer: ReturnType<typeof setTimeout> | null = null
 
 onLoad((q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
-  order.value = getOrder(id.value) ?? null
+  order.value = orderStore.orders.find(o => o.id === id.value) ?? null
 })
 onUnload(() => {
   if (timer) { clearTimeout(timer); timer = null }
@@ -29,8 +32,12 @@ function doPay() {
   timer = setTimeout(() => {
     timer = null
     try {
-      const next = pay(o, Date.now())
-      upsertOrder(next)
+      const next = orderStore.doPay(o)
+      // 返积分 + 累计消费（登录后才有会员数据可累计）
+      if (userStore.isLogin()) {
+        userStore.addPoints(earnBySpend(next.payAmount))
+        userStore.addSpend(next.payAmount)
+      }
       uni.hideLoading()
       uni.redirectTo({ url: `/pages/order/detail?id=${next.id}`, fail: () => { paying.value = false } })
     } catch {
