@@ -89,8 +89,9 @@ npm run build:h5 # 构建 H5 产物
 
 ## 部署
 
-- **H5 在线预览**：`https://<your-app>.vercel.app`（部署地址待上线后更新）
-- **微信小程序体验版**：`manifest.json` 中的小程序 appid 待配置，配置后可通过 HBuilderX 上传体验版。
+- **H5 在线预览（Vercel，国际访问）**：`https://mall-miniapp.vercel.app`
+- **微信小程序体验版**：`manifest.json` 中的小程序 appid 待配置，配置后通过微信开发者工具上传 → 设为体验版 → 生成二维码（国内可直接扫码访问）。
+- 说明：Vercel 域名在国内访问受限，国内演示以小程序体验版为准。
 
 ## 目录结构
 
