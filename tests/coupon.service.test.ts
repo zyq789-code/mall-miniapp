@@ -31,4 +31,14 @@ describe('coupon', () => {
     expect(getUsableCoupons(cs, 10000, [], now)).toHaveLength(2)
     expect(bestCoupon(cs, 10000, [], now)?.id).toBe('b')
   })
+  it('bestCoupon 无可用券返回 null', () => {
+    expect(bestCoupon([coupon({ endAt: 100 })], 10000, [], now)).toBeNull()
+    expect(bestCoupon([], 10000, [], now)).toBeNull()
+  })
+  it('折扣券折扣为 100 时抵扣为 0（下限钳位）', () => {
+    expect(calcCouponDiscount(coupon({ type: 'discount', discount: 100 }), 10000)).toBe(0)
+  })
+  it('门槛为 0 的折扣券小额订单可用', () => {
+    expect(isCouponUsable(coupon({ type: 'discount', discount: 90, threshold: 0 }), 100, [], now)).toBe(true)
+  })
 })

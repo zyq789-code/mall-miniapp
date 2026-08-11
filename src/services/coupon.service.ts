@@ -5,7 +5,7 @@ export function isCouponUsable(coupon: Coupon, orderAmount: number, goodsCategor
   if (now < coupon.startAt || now > coupon.endAt) return false
   if (orderAmount < coupon.threshold) return false
   if (coupon.scope !== 'all') {
-    const scopes = coupon.scope as string[]
+    const scopes = coupon.scope
     if (!goodsCategoryIds.some(id => scopes.includes(id))) return false
   }
   return true
