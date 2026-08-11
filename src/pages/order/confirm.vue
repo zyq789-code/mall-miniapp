@@ -33,6 +33,9 @@ onShow(() => {
   }).filter((x): x is OrderItem => x !== null)
   userCoupons.value = getCoupons()
   points.value = storage.get<Member | null>(KEYS.user, null)?.points ?? 0
+  // 一次性回传：券列表选择后写入 selectedCoupon
+  const sel = storage.get<string>(KEYS.selectedCoupon, '')
+  if (sel) { selectedCoupon.value = sel; storage.remove(KEYS.selectedCoupon) }
 })
 
 const total = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
@@ -45,7 +48,7 @@ const amounts = computed(() => calcOrderAmounts(items.value, couponDeduction.val
 
 interface SwitchChangeEvent { detail: { value: boolean } }
 function onUsePoints(e: Event) { usePoints.value = (e as unknown as SwitchChangeEvent).detail.value }
-const goAddress = () => uni.navigateTo({ url: '/pages/address/list' })
+const goAddress = () => uni.navigateTo({ url: '/pages/address/list?select=1' })
 const goCoupon = () => uni.navigateTo({ url: '/pages/coupon/mine?select=1' })
 
 function submit() {

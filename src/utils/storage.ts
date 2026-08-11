@@ -16,5 +16,5 @@ export const storage = {
 export const KEYS = {
   cart: 'cart', orders: 'orders', addresses: 'addresses',
   user: 'user', coupons: 'coupons', aftersales: 'aftersales',
-  favorites: 'favorites', footprints: 'footprints',
+  favorites: 'favorites', footprints: 'footprints', selectedCoupon: 'selectedCoupon',
 } as const
