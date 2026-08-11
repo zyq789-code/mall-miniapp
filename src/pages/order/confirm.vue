@@ -61,7 +61,10 @@ function submit() {
   }
   upsertOrder(order)
   saveCart(getCart().filter(x => !items.value.some(i => i.goodsId === x.goodsId && i.skuId === x.skuId)))
-  uni.redirectTo({ url: `/pages/order/pay?id=${order.id}` })
+  uni.redirectTo({
+    url: `/pages/order/pay?id=${order.id}`,
+    fail: () => { submitting.value = false },
+  })
 }
 </script>
 <template>
