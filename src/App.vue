@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
-onLaunch(() => {
-  console.log("App Launch");
-});
-onShow(() => {
-  console.log("App Show");
-});
-onHide(() => {
-  console.log("App Hide");
-});
+import { onLaunch } from '@dcloudio/uni-app'
+onLaunch(() => {})
 </script>
-<style></style>
+<style lang="scss">
+page {
+  background: $bg;
+  color: $text;
+  font-size: 28rpx;
+}
+.card {
+  background: $card;
+  border-radius: $radius;
+}
+.btn-primary {
+  background: $brand;
+  color: #fff;
+  border-radius: $radius;
+}
+</style>

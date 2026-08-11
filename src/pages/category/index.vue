@@ -1,6 +1,6 @@
 <script setup lang="ts"></script>
 <template>
-  <view class="page"><view class="ph">首页（待实现）</view></view>
+  <view class="page"><view class="ph">分类页面（待实现）</view></view>
 </template>
 <style scoped>
 .ph {
