@@ -38,6 +38,18 @@
       }
     },
     {
+      "path": "pages/goods/list",
+      "style": {
+        "navigationBarTitleText": "商品列表"
+      }
+    },
+    {
+      "path": "pages/flash/index",
+      "style": {
+        "navigationBarTitleText": "限时秒杀"
+      }
+    },
+    {
       "path": "pages/order/confirm",
       "style": {
         "navigationBarTitleText": "确认订单"
