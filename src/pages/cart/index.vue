@@ -1,27 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
-import type { CartItem } from '../../models/goods'
+import { useCartStore } from '../../stores/cart'
 import { goodsRepo } from '../../api/repository'
-import { getCart, saveCart } from '../../api/cart.api'
 import { formatPrice } from '../../utils/format'
-import { toggleChecked, toggleAllChecked, updateQuantity, removeItem, calcCheckedAmount, countChecked } from '../../services/cart.service'
+import { calcCheckedAmount, countChecked } from '../../services/cart.service'
 import Stepper from '../../components/ui/Stepper.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
-const list = ref<CartItem[]>([])
-const load = () => { list.value = getCart() }
-onShow(load)
+const cart = useCartStore()
+const { list } = storeToRefs(cart)
+onShow(cart.sync)
 
 const goodsOf = (goodsId: string) => goodsRepo.get(goodsId)
 const skuPrice = (goodsId: string, skuId: string) => goodsOf(goodsId)?.skus.find(s => s.id === skuId)?.price ?? 0
 const checkedAmount = computed(() => calcCheckedAmount(list.value, skuPrice))
 const allChecked = computed(() => countChecked(list.value) === list.value.length && list.value.length > 0)
-const setList = (v: CartItem[]) => { list.value = v; saveCart(v) }
-const onToggleAll = () => setList(toggleAllChecked(list.value, !allChecked.value))
-const onToggle = (gid: string, sid: string) => setList(toggleChecked(list.value, gid, sid))
-const onQty = (gid: string, sid: string, q: number) => setList(updateQuantity(list.value, gid, sid, q))
-const onRemove = (gid: string, sid: string) => setList(removeItem(list.value, gid, sid))
+const onToggleAll = () => cart.toggleAll(!allChecked.value)
+const onToggle = (gid: string, sid: string) => cart.toggle(gid, sid)
+const onQty = (gid: string, sid: string, q: number) => cart.setQty(gid, sid, q)
+const onRemove = (gid: string, sid: string) => cart.remove(gid, sid)
 const checkout = () => {
   if (!countChecked(list.value)) return uni.showToast({ title: '请选择商品', icon: 'none' })
   uni.navigateTo({ url: '/pages/order/confirm' })
