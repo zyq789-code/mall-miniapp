@@ -12,6 +12,11 @@ node_modules/
 dist/
 *.local
 
+# Env files
+.env
+.env.*
+!.env.example
+
 # Project-specific
 .superpowers/
 
