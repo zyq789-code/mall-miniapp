@@ -8,8 +8,15 @@ const emit = defineEmits<{ (e: 'update:show', v: boolean): void; (e: 'confirm', 
 const skuId = ref('')
 const quantity = ref(1)
 watch(() => props.show, s => { if (s && props.goods.skus.length) { skuId.value = props.goods.skus[0].id; quantity.value = 1 } })
+// 切换规格时重置数量，避免超过新规格库存
+watch(skuId, () => { quantity.value = 1 })
 const sku = computed(() => props.goods.skus.find(s => s.id === skuId.value))
 const outOfStock = (s: Sku) => s.stock <= 0
+const select = (s: Sku) => { if (!outOfStock(s)) skuId.value = s.id }
+const confirm = () => {
+  if (!sku.value) return
+  emit('confirm', sku.value, quantity.value)
+}
 const close = () => emit('update:show', false)
 </script>
 <template>
@@ -20,14 +27,14 @@ const close = () => emit('update:show', false)
       <view class="specs">
         <view v-for="s in goods.skus" :key="s.id"
           class="spec" :class="{ on: s.id === skuId, disabled: outOfStock(s) }"
-          @tap="!outOfStock(s) && (skuId = s.id)">
+          @tap="select(s)">
           {{ s.spec }}
         </view>
       </view>
       <view class="row"><text>数量</text><Stepper v-model="quantity" :max="sku?.stock || 99" /></view>
       <view class="actions">
         <view class="btn" @tap="close">取消</view>
-        <view class="btn primary" @tap="emit('confirm', sku!, quantity)">加入购物车</view>
+        <view class="btn primary" @tap="confirm">加入购物车</view>
       </view>
     </view>
   </view>

@@ -13,8 +13,6 @@ const goods = ref<Goods>()
 const showSku = ref(false)
 onLoad((q) => { id.value = q?.id ?? ''; goods.value = getGoods(id.value) })
 
-const skuPrice = (goodsId: string, skuId: string) => goods.value?.skus.find(s => s.id === skuId)?.price ?? 0
-
 function onConfirm(sku: Sku, quantity: number) {
   saveCart(addToCart(getCart(), { goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() }))
   uni.showToast({ title: '已加入购物车', icon: 'success' })
