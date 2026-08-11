@@ -14,7 +14,7 @@ const flashActive = ref(true)
 onLoad(() => { setTimeout(() => { list.value = goodsRepo.list(); loading.value = false }, 400) })
 onPullDownRefresh(async () => { list.value = goodsRepo.list(); loading.value = false; uni.stopPullDownRefresh() })
 
-const goSearch = () => uni.navigateTo({ url: '/pages/goods/list?keyword=' })
+const goSearch = () => uni.navigateTo({ url: '/pages/goods/list' })
 const goList = (categoryId: string) => uni.navigateTo({ url: `/pages/goods/list?categoryId=${categoryId}` })
 const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
 const goCoupon = () => uni.navigateTo({ url: '/pages/coupon/center' })
@@ -48,12 +48,12 @@ const goFlash = () => uni.navigateTo({ url: '/pages/flash/index' })
 </template>
 <style scoped lang="scss">
 .page { padding: 16rpx; }
-.search { background: #fff; border-radius: 40rpx; padding: 18rpx 30rpx; margin-bottom: 16rpx; }
+.search { background: $card; border-radius: 40rpx; padding: 18rpx 30rpx; margin-bottom: 16rpx; }
 .ph { color: $text3; }
 .banner { height: 300rpx; border-radius: $radius; overflow: hidden; margin-bottom: 16rpx; }
 .banner-img { width: 100%; height: 100%; }
 .chip-row { display: flex; gap: 20rpx; flex-wrap: wrap; margin-bottom: 16rpx; }
-.chip { flex: 1; min-width: 120rpx; background: #fff; border-radius: $radius; text-align: center; padding: 24rpx 0; }
+.chip { flex: 1; min-width: 120rpx; background: $card; border-radius: $radius; text-align: center; padding: 24rpx 0; }
 .flash { display: flex; justify-content: space-between; align-items: center; padding: 24rpx; margin-bottom: 16rpx; }
 .flash-t { color: $price; font-weight: 700; }
 .flash-go { color: $text3; }
