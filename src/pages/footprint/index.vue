@@ -10,11 +10,12 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 interface Row { item: FootprintItem; goods: Goods }
 const list = ref<Row[]>([])
 
-function load(): void {
+async function load(): Promise<void> {
   const raw = storage.get<FootprintItem[]>(KEYS.footprints, [])
-  list.value = [...raw]
-    .sort((a, b) => b.time - a.time)
-    .map(item => ({ item, goods: goodsRepo.get(item.goodsId) }))
+  const sorted = [...raw].sort((a, b) => b.time - a.time)
+  const goods = await Promise.all(sorted.map(item => goodsRepo.get(item.goodsId)))
+  list.value = sorted
+    .map((item, i) => ({ item, goods: goods[i] }))
     .filter((r): r is Row => !!r.goods)
 }
 

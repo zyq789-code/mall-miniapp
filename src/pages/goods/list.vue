@@ -25,6 +25,7 @@ const list = ref<Goods[]>([])
 const loading = ref(true)
 const isSearch = computed(() => keyword.value !== '')
 let loadTimer: ReturnType<typeof setTimeout> | null = null
+let seq = 0
 
 onLoad((q) => {
   keyword.value = q?.keyword ?? ''
@@ -40,11 +41,16 @@ function load(): void {
   const s: Sort | undefined = sort.value === '' ? undefined : sort.value
   const q = keyword.value
   const cid = categoryId.value
-  // 模拟异步加载，让骨架屏可见；数据就绪后切到 grid / 空态
-  loadTimer = setTimeout(() => {
+  const cur = ++seq
+  // 保持 300ms 延迟让骨架屏可见；数据就绪后切到 grid / 空态
+  loadTimer = setTimeout(async () => {
     loadTimer = null
-    list.value = q ? goodsRepo.search(q) : goodsRepo.list({ categoryId: cid, sort: s })
-    loading.value = false
+    try {
+      const data = q ? await goodsRepo.search(q) : await goodsRepo.list({ categoryId: cid, sort: s })
+      if (cur === seq) list.value = data
+    } finally {
+      if (cur === seq) loading.value = false
+    }
   }, 300)
 }
 

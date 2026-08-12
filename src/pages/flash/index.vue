@@ -12,7 +12,12 @@ import { useCartStore } from '../../stores/cart'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 interface FlashItem { sale: FlashSale; goods?: Goods }
-const items: FlashItem[] = flashSales.map(f => ({ sale: f, goods: goodsRepo.get(f.goodsId) }))
+const items = ref<FlashItem[]>([])
+async function loadGoods(): Promise<void> {
+  const rows = await Promise.all(flashSales.map(async (f) => ({ sale: f, goods: await goodsRepo.get(f.goodsId) })))
+  items.value = rows
+}
+loadGoods()
 
 const now = ref(Date.now())
 const timer = setInterval(() => { now.value = Date.now() }, 1000)
@@ -37,7 +42,7 @@ function purchasedCount(f: FlashSale): number {
 
 function onBuy(f: FlashSale): void {
   if (!isFlashActive(f, now.value)) return
-  const goods = items.find(it => it.sale.id === f.id)?.goods
+  const goods = items.value.find(it => it.sale.id === f.id)?.goods
   if (!goods || !goods.skus.length) return
   if (!canPurchase(f, purchasedCount(f))) {
     uni.showToast({ title: '已达限购', icon: 'none' })

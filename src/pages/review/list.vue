@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Review } from '../../models/review'
 import { goodsRepo } from '../../api/repository'
@@ -9,10 +9,12 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 
 const goodsId = ref('')
 const list = ref<Review[]>([])
-const goodsName = computed(() => goodsRepo.get(goodsId.value)?.name ?? '')
+const goodsName = ref('')
 
-onLoad((q) => {
+onLoad(async (q) => {
   goodsId.value = typeof q?.goodsId === 'string' ? q?.goodsId : ''
+  const g = await goodsRepo.get(goodsId.value)
+  goodsName.value = g?.name ?? ''
   list.value = storage.get<Review[]>(KEYS.reviews, [])
     .filter(r => r.goodsId === goodsId.value)
     .sort((a, b) => b.time - a.time)

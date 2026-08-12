@@ -14,13 +14,15 @@ import SkuPopup from '../../components/ui/SkuPopup.vue'
 
 const id = ref('')
 const goods = ref<Goods>()
+const loading = ref(true)
 const showSku = ref(false)
 const fav = ref(false)
 const cartStore = useCartStore()
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = q?.id ?? ''
-  goods.value = goodsRepo.get(id.value)
+  goods.value = await goodsRepo.get(id.value)
+  loading.value = false
   if (!goods.value) return
   recordFootprint(id.value)
   fav.value = storage.get<string[]>(KEYS.favorites, []).includes(id.value)
@@ -71,7 +73,9 @@ const salePrice = computed<number | null>(() => {
 })
 </script>
 <template>
-  <view v-if="goods" class="page">
+  <Skeleton v-if="loading" />
+  <EmptyView v-else-if="!goods" text="商品不存在或已下架" />
+  <view v-else class="page">
     <swiper class="gallery" circular indicator-dots>
       <swiper-item v-for="(img, i) in goods.images" :key="i"><image :src="img" class="gallery-img" mode="aspectFill" /></swiper-item>
     </swiper>

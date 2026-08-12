@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
+import type { Goods } from '../../models/goods'
 import { useCartStore } from '../../stores/cart'
 import { goodsRepo } from '../../api/repository'
 import { formatPrice } from '../../utils/format'
@@ -11,10 +12,21 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 
 const cart = useCartStore()
 const { list } = storeToRefs(cart)
-onShow(cart.sync)
 
-const goodsOf = (goodsId: string) => goodsRepo.get(goodsId)
-const skuPrice = (goodsId: string, skuId: string) => goodsOf(goodsId)?.skus.find(s => s.id === skuId)?.price ?? 0
+// 商品映射：onShow 时异步拉取购物车涉及的每个商品，模板从 Map 同步取值
+const goodsMap = ref<Record<string, Goods>>({})
+async function loadGoods() {
+  const ids = [...new Set(list.value.map(i => i.goodsId))]
+  const rows = await Promise.all(ids.map(async (id) => [id, await goodsRepo.get(id)] as const))
+  const map: Record<string, Goods> = {}
+  rows.forEach(([id, g]) => { if (g) map[id] = g })
+  goodsMap.value = map
+}
+onShow(() => { cart.sync(); loadGoods() })
+
+const goodsOf = (goodsId: string) => goodsMap.value[goodsId]
+const skuOf = (goodsId: string, skuId: string) => goodsOf(goodsId)?.skus.find(s => s.id === skuId)
+const skuPrice = (goodsId: string, skuId: string) => skuOf(goodsId, skuId)?.price ?? 0
 const checkedAmount = computed(() => calcCheckedAmount(list.value, skuPrice))
 const allChecked = computed(() => countChecked(list.value) === list.value.length && list.value.length > 0)
 const onToggleAll = () => cart.toggleAll(!allChecked.value)
@@ -35,8 +47,8 @@ const checkout = () => {
         <image :src="goodsOf(it.goodsId)?.cover" class="pic" mode="aspectFill" />
         <view class="mid">
           <view class="name">{{ goodsOf(it.goodsId)?.name }}</view>
-          <view class="spec">{{ goodsOf(it.goodsId)?.skus.find(s => s.id === it.skuId)?.spec }}</view>
-          <view class="row"><text class="price">{{ formatPrice(skuPrice(it.goodsId, it.skuId)) }}</text><Stepper :model-value="it.quantity" :max="goodsOf(it.goodsId)?.skus.find(s => s.id === it.skuId)?.stock || 99" @update:model-value="q => onQty(it.goodsId, it.skuId, q)" /></view>
+          <view class="spec">{{ skuOf(it.goodsId, it.skuId)?.spec }}</view>
+          <view class="row"><text class="price">{{ formatPrice(skuPrice(it.goodsId, it.skuId)) }}</text><Stepper :model-value="it.quantity" :max="skuOf(it.goodsId, it.skuId)?.stock || 99" @update:model-value="q => onQty(it.goodsId, it.skuId, q)" /></view>
         </view>
         <view class="del" @tap="onRemove(it.goodsId, it.skuId)">删除</view>
       </view>

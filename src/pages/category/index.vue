@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { categories } from '../../mock/goods'
 import { goodsRepo } from '../../api/repository'
@@ -8,8 +9,23 @@ import GoodsCard from '../../components/ui/GoodsCard.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const activeId = ref(categories[0]?.id ?? '')
+const list = ref<Goods[]>([])
+const loading = ref(true)
+let seq = 0
 
-const goods = computed<Goods[]>(() => goodsRepo.list({ categoryId: activeId.value }))
+async function load() {
+  const cur = ++seq
+  loading.value = true
+  try {
+    const data = await goodsRepo.list({ categoryId: activeId.value })
+    if (cur === seq) list.value = data
+  } finally {
+    if (cur === seq) loading.value = false
+  }
+}
+
+onLoad(load)
+watch(activeId, load)
 
 const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
 </script>
@@ -25,9 +41,10 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
       >{{ c.name }}</view>
     </scroll-view>
     <scroll-view scroll-y class="main">
-      <view v-if="!goods.length" class="wrap"><EmptyView text="该分类暂无商品" /></view>
+      <Skeleton v-if="loading" />
+      <view v-else-if="!list.length" class="wrap"><EmptyView text="该分类暂无商品" /></view>
       <view v-else class="grid">
-        <GoodsCard v-for="g in goods" :key="g.id" :goods="g" :sale-price="getFlashPrice(g.id)" @tap="goDetail" />
+        <GoodsCard v-for="g in list" :key="g.id" :goods="g" :sale-price="getFlashPrice(g.id)" @tap="goDetail" />
       </view>
     </scroll-view>
   </view>

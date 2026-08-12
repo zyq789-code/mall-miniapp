@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onUnload, onPullDownRefresh } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
@@ -9,17 +9,29 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 
 const loading = ref(true)
 const list = ref<Goods[]>([])
+const goodsMap = ref<Record<string, Goods>>({})
 const flashActive = ref(true)
 
 const now = ref(Date.now())
 let ticker: ReturnType<typeof setInterval> | undefined
 
+async function load() {
+  loading.value = true
+  try {
+    const data = await goodsRepo.list()
+    list.value = data
+    goodsMap.value = Object.fromEntries(data.map(g => [g.id, g]))
+  } finally {
+    loading.value = false
+  }
+}
+
 onLoad(() => {
-  setTimeout(() => { list.value = goodsRepo.list(); loading.value = false }, 400)
+  setTimeout(load, 400)
   ticker = setInterval(() => { now.value = Date.now() }, 1000)
 })
 onUnload(() => { if (ticker) clearInterval(ticker) })
-onPullDownRefresh(async () => { list.value = goodsRepo.list(); loading.value = false; uni.stopPullDownRefresh() })
+onPullDownRefresh(async () => { await load(); uni.stopPullDownRefresh() })
 
 const goSearch = () => uni.navigateTo({ url: '/pages/goods/list' })
 const goList = (categoryId: string) => uni.navigateTo({ url: `/pages/goods/list?categoryId=${categoryId}` })
@@ -37,12 +49,12 @@ const navItems: NavItem[] = [
   { id: 'flash', icon: '⚡', label: '限时秒杀', action: goFlash },
 ]
 
-const bannerList = banners.map(b => ({
+const bannerList = computed(() => banners.map(b => ({
   ...b,
-  title: b.goodsId ? (goodsRepo.get(b.goodsId)?.name ?? '') : '',
-}))
+  title: b.goodsId ? (goodsMap.value[b.goodsId]?.name ?? '') : '',
+})))
 
-const flashThumb = goodsRepo.get(flashSales[0]?.goodsId ?? '')?.cover ?? ''
+const flashThumb = computed(() => goodsMap.value[flashSales[0]?.goodsId ?? '']?.cover ?? '')
 
 function countdown(): string {
   const nextHour = Math.ceil(now.value / 3600000) * 3600000

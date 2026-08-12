@@ -8,6 +8,18 @@ import { useOrderStore } from '../../stores/order'
 import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
+// 商品封面映射：onLoad 时异步拉取订单涉及商品，模板从 Map 同步取值
+const coverMap = ref<Record<string, string>>({})
+async function loadCovers() {
+  const o = order.value
+  if (!o) return
+  const ids = [...new Set(o.items.map(i => i.goodsId))]
+  const rows = await Promise.all(ids.map(async (gid) => [gid, await goodsRepo.get(gid)] as const))
+  const map: Record<string, string> = {}
+  rows.forEach(([gid, g]) => { if (g) map[gid] = g.cover })
+  coverMap.value = map
+}
+
 const STATUS_TEXT: Record<string, string> = {
   pending_pay: '待付款', pending_ship: '待发货', pending_receive: '待收货', completed: '已完成', canceled: '已取消',
 }
@@ -19,9 +31,10 @@ const orderStore = useOrderStore()
 const order = ref<Order | null>(null)
 const id = ref('')
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
   order.value = orderStore.orders.find(o => o.id === id.value) ?? null
+  await loadCovers()
 })
 function reload() { order.value = orderStore.orders.find(o => o.id === id.value) ?? null }
 function act(updater: (o: Order) => void) {
@@ -54,7 +67,7 @@ const goLogistics = () => uni.navigateTo({ url: `/pages/logistics/index?orderId=
       </view>
       <view class="card">
         <view v-for="it in order.items" :key="it.goodsId + it.skuId" class="item">
-          <image :src="goodsRepo.get(it.goodsId)?.cover ?? it.image" class="pic" mode="aspectFill" />
+          <image :src="coverMap[it.goodsId] ?? it.image" class="pic" mode="aspectFill" />
           <view class="mid">
             <view class="name">{{ it.name }}</view>
             <view class="spec">{{ it.spec }}</view>

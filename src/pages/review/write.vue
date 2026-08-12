@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
 import type { Review } from '../../models/review'
@@ -19,13 +19,15 @@ const content = ref('')
 const anonymous = ref(false)
 const duplicated = ref(false)
 
-const goodsName = computed(() => goodsRepo.get(goodsId.value)?.name ?? '')
+const goodsName = ref('')
 
-onLoad((q) => {
+onLoad(async (q) => {
   orderId.value = typeof q?.orderId === 'string' ? q?.orderId : ''
   goodsId.value = typeof q?.goodsId === 'string' ? q?.goodsId : ''
   order.value = getOrder(orderId.value) ?? null
   if (!goodsId.value) goodsId.value = order.value?.items[0]?.goodsId ?? ''
+  const g = await goodsRepo.get(goodsId.value)
+  goodsName.value = g?.name ?? ''
   duplicated.value = storage.get<Review[]>(KEYS.reviews, []).some(r => r.orderId === orderId.value && r.goodsId === goodsId.value)
 })
 

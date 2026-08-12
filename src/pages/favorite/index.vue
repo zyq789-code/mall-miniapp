@@ -9,11 +9,10 @@ import EmptyView from '../../components/ui/EmptyView.vue'
 
 const list = ref<Goods[]>([])
 
-function load(): void {
+async function load(): Promise<void> {
   const ids = storage.get<string[]>(KEYS.favorites, [])
-  list.value = ids
-    .map(id => goodsRepo.get(id))
-    .filter((g): g is Goods => !!g)
+  const goods = await Promise.all(ids.map(id => goodsRepo.get(id)))
+  list.value = goods.filter((g): g is Goods => !!g)
 }
 
 onShow(load)

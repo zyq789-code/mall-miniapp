@@ -31,12 +31,23 @@ const loading = ref(true)
 let loadTimer: ReturnType<typeof setTimeout> | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 
+// 商品封面映射：异步拉取订单首件商品，列表模板从 Map 同步取值
+const coverMap = ref<Record<string, string>>({})
+async function loadCovers() {
+  const ids = [...new Set(orders.value.map(o => o.items[0]?.goodsId).filter((id): id is string => !!id))]
+  const rows = await Promise.all(ids.map(async (gid) => [gid, await goodsRepo.get(gid)] as const))
+  const map: Record<string, string> = {}
+  rows.forEach(([gid, g]) => { if (g) map[gid] = g.cover })
+  coverMap.value = map
+}
+
 const load = () => {
   loading.value = true
   if (loadTimer) clearTimeout(loadTimer)
   loadTimer = setTimeout(() => {
     loadTimer = null
     orderStore.sync()
+    void loadCovers()
     loading.value = false
   }, 300)
 }
@@ -66,7 +77,7 @@ const mmss = (ms: number) => {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${p(Math.floor(s / 60))}:${p(s % 60)}`
 }
-const coverOf = (o: Order) => goodsRepo.get(o.items[0]?.goodsId)?.cover ?? o.items[0]?.image ?? ''
+const coverOf = (o: Order) => coverMap.value[o.items[0]?.goodsId] ?? o.items[0]?.image ?? ''
 const goDetail = (o: Order) => uni.navigateTo({ url: `/pages/order/detail?id=${o.id}` })
 const goPay = (o: Order) => uni.navigateTo({ url: `/pages/order/pay?id=${o.id}` })
 

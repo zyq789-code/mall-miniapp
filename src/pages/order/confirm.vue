@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
+import type { Goods } from '../../models/goods'
 import type { OrderItem, Address } from '../../models/order'
 import type { UserCoupon } from '../../models/coupon'
 import { goodsRepo } from '../../api/repository'
@@ -21,9 +22,20 @@ const userStore = useUserStore()
 const { list: cartList } = storeToRefs(cart)
 const { member } = storeToRefs(userStore)
 
+// 商品映射：onShow 时异步拉取已选结算商品，模板/computed 从 Map 同步取值
+const goodsMap = ref<Record<string, Goods>>({})
+async function loadGoods() {
+  const ids = [...new Set(cartList.value.filter(i => i.checked).map(i => i.goodsId))]
+  const rows = await Promise.all(ids.map(async (id) => [id, await goodsRepo.get(id)] as const))
+  const map: Record<string, Goods> = {}
+  rows.forEach(([id, g]) => { if (g) map[id] = g })
+  goodsMap.value = map
+}
+const goodsOf = (id: string) => goodsMap.value[id]
+
 const items = computed<OrderItem[]>(() =>
   cartList.value.filter(i => i.checked).map(i => {
-    const g = goodsRepo.get(i.goodsId)
+    const g = goodsOf(i.goodsId)
     if (!g) return null
     const sku = g.skus.find(s => s.id === i.skuId)
     if (!sku) return null
@@ -40,6 +52,7 @@ const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.
 onShow(() => {
   cart.sync()
   userStore.sync()
+  loadGoods()
   userCoupons.value = getCoupons()
   // 一次性回传：券列表选择后写入 selectedCoupon
   const sel = storage.get<string>(KEYS.selectedCoupon, '')
@@ -47,7 +60,7 @@ onShow(() => {
 })
 
 const total = computed(() => items.value.reduce((s, i) => s + i.price * i.quantity, 0))
-const categoryIds = computed(() => items.value.map(i => goodsRepo.get(i.goodsId)?.categoryId ?? ''))
+const categoryIds = computed(() => items.value.map(i => goodsOf(i.goodsId)?.categoryId ?? ''))
 const usableCoupons = computed(() => getUsableCoupons(userCoupons.value, total.value, categoryIds.value, Date.now()))
 const coupon = computed(() => usableCoupons.value.find(c => c.id === selectedCoupon.value) ?? null)
 const couponDeduction = computed(() => (coupon.value ? calcCouponDiscount(coupon.value, total.value) : 0))

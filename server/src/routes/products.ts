@@ -19,6 +19,13 @@ interface ProductRow {
   created_at: number
 }
 
+interface SkuDto {
+  id: string
+  spec: string
+  price: number
+  stock: number
+}
+
 interface ProductDto {
   id: string
   name: string
@@ -32,6 +39,10 @@ interface ProductDto {
   status: string
   cover: string
   createdAt: number
+  /** 小程序 Goods 模型所需字段（由基础字段派生，后端作为商品数据源）。 */
+  images: string[]
+  desc: string
+  skus: SkuDto[]
 }
 
 /** Fields a client may write (snake_case only in SQL, camelCase over the wire). */
@@ -65,12 +76,13 @@ function toDTO(row: ProductRow): ProductDto {
   } catch {
     tags = []
   }
+  const price = row.price
   return {
     id: row.id,
     name: row.name,
     subtitle: row.subtitle,
     categoryId: row.category_id,
-    price: row.price,
+    price,
     originalPrice: row.original_price,
     stock: row.stock,
     sales: row.sales,
@@ -78,6 +90,12 @@ function toDTO(row: ProductRow): ProductDto {
     status: row.status,
     cover: row.cover,
     createdAt: row.created_at,
+    images: row.cover ? [row.cover] : [],
+    desc: `${row.name}，${row.subtitle}。甄选品质，7天无理由退换，正品保障，全国包邮。`,
+    skus: [
+      { id: `${row.id}-s1`, spec: '标准款', price, stock: row.stock },
+      { id: `${row.id}-s2`, spec: '尊享款', price: price + Math.round(price * 0.2), stock: row.stock },
+    ],
   }
 }
 
@@ -184,6 +202,19 @@ router.get('/', (req, res) => {
     const rows = db.prepare(`SELECT * FROM products ${whereSql}`).all(...params) as unknown as ProductRow[]
 
     res.json({ success: true, data: { list: rows.map(toDTO), total: rows.length } })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal error' })
+  }
+})
+
+router.get('/:id', (req, res) => {
+  try {
+    const row = getProductById(req.params.id)
+    if (!row) {
+      res.status(404).json({ success: false, message: 'product not found' })
+      return
+    }
+    res.json({ success: true, data: toDTO(row) })
   } catch (error) {
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal error' })
   }
