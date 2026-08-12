@@ -37,7 +37,9 @@ db.exec(`
     coupon_deduction INTEGER,
     points_deduction INTEGER,
     create_time INTEGER,
-    pay_time INTEGER
+    pay_time INTEGER,
+    ship_time INTEGER,
+    receive_time INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS users (
@@ -47,6 +49,13 @@ db.exec(`
     nickname TEXT
   );
 `)
+
+// Idempotent migration: add columns introduced after the table was first created.
+const orderCols = new Set(
+  (db.prepare('PRAGMA table_info(orders)').all() as Array<{ name: string }>).map((col) => col.name),
+)
+if (!orderCols.has('ship_time')) db.exec('ALTER TABLE orders ADD COLUMN ship_time INTEGER')
+if (!orderCols.has('receive_time')) db.exec('ALTER TABLE orders ADD COLUMN receive_time INTEGER')
 
 seedIfEmpty(db)
 
