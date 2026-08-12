@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import type { AfterSale } from '../../models/aftersale'
-import { getOrder } from '../../api/order.api'
+import { getOrders } from '../../api/order.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatTime } from '../../utils/format'
 import { approve, refund, reject, reappeal } from '../../services/aftersale.service'
@@ -17,9 +17,15 @@ const TYPE_TEXT: Record<string, string> = {
 }
 
 const list = ref<AfterSale[]>([])
-const load = () => {
+const orderNoMap = ref<Record<string, string>>({})
+const load = async () => {
   const all = storage.get<AfterSale[]>(KEYS.aftersales, [])
   list.value = [...all].sort((a, b) => b.applyTime - a.applyTime)
+  // 订单已迁到后端，订单号从后端拉取后建映射
+  const map: Record<string, string> = {}
+  const allOrders = await getOrders()
+  allOrders.forEach(o => { map[o.id] = o.orderNo })
+  orderNoMap.value = map
 }
 onShow(load)
 
@@ -38,14 +44,13 @@ const onApprove = (a: AfterSale) => run(a, approve)
 const onRefund = (a: AfterSale) => run(a, refund)
 const onReject = (a: AfterSale) => run(a, reject)
 const onReappeal = (a: AfterSale) => run(a, x => ({ ...reappeal(x), applyTime: Date.now() }))
-const orderNoOf = (orderId: string) => getOrder(orderId)?.orderNo ?? '—'
 </script>
 <template>
   <view class="page">
     <EmptyView v-if="!list.length" text="暂无售后记录" />
     <view v-for="a in list" :key="a.id" class="card">
       <view class="head">
-        <text class="no">订单 {{ orderNoOf(a.orderId) }}</text>
+        <text class="no">订单 {{ orderNoMap[a.orderId] ?? '—' }}</text>
         <text class="status" :class="a.status">{{ STATUS_TEXT[a.status] }}</text>
       </view>
       <view class="body">

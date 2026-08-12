@@ -7,7 +7,6 @@ import { goodsRepo } from '../../api/repository'
 import { formatPrice, formatTime } from '../../utils/format'
 import { isExpired, ORDER_TIMEOUT_MS } from '../../services/order.service'
 import { useOrderStore } from '../../stores/order'
-import { tryRun } from '../../utils/toast'
 import OrderStatusTabs from '../../components/ui/OrderStatusTabs.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
@@ -44,18 +43,19 @@ async function loadCovers() {
 const load = () => {
   loading.value = true
   if (loadTimer) clearTimeout(loadTimer)
-  loadTimer = setTimeout(() => {
+  loadTimer = setTimeout(async () => {
     loadTimer = null
-    orderStore.sync()
-    void loadCovers()
+    await orderStore.sync()
+    await loadCovers()
     loading.value = false
   }, 300)
 }
 const filtered = computed(() => (active.value === 'all' ? orders.value : orders.value.filter(o => o.status === active.value)))
+const toastError = (e: unknown) => uni.showToast({ title: e instanceof Error ? e.message : '操作失败', icon: 'none' })
 const autoCancel = () => {
   const expired = orders.value.filter(o => isExpired(o, now.value))
   if (!expired.length) return
-  expired.forEach(o => tryRun(() => orderStore.doCancel(o)))
+  expired.forEach(o => { void orderStore.doCancel(o).catch(toastError) })
 }
 const startTick = () => {
   if (timer) return
@@ -81,10 +81,9 @@ const coverOf = (o: Order) => coverMap.value[o.items[0]?.goodsId] ?? o.items[0]?
 const goDetail = (o: Order) => uni.navigateTo({ url: `/pages/order/detail?id=${o.id}` })
 const goPay = (o: Order) => uni.navigateTo({ url: `/pages/order/pay?id=${o.id}` })
 
-const onCancel = (o: Order) => tryRun(() => orderStore.doCancel(o))
-const onShip = (o: Order) => tryRun(() => orderStore.doShip(o))
-const onReceive = (o: Order) => tryRun(() => orderStore.doReceive(o))
-const onDelete = (o: Order) => orderStore.remove(o.id)
+const onCancel = async (o: Order) => { try { await orderStore.doCancel(o) } catch (e) { toastError(e) } }
+const onShip = async (o: Order) => { try { await orderStore.doShip(o) } catch (e) { toastError(e) } }
+const onReceive = async (o: Order) => { try { await orderStore.doReceive(o) } catch (e) { toastError(e) } }
 </script>
 <template>
   <view class="page">
@@ -114,7 +113,6 @@ const onDelete = (o: Order) => orderStore.remove(o.id)
         </template>
         <view v-else-if="o.status === 'pending_ship'" class="btn" @tap.stop="onShip(o)">模拟发货</view>
         <view v-else-if="o.status === 'pending_receive'" class="btn" @tap.stop="onReceive(o)">确认收货</view>
-        <view v-else class="btn ghost" @tap.stop="onDelete(o)">删除订单</view>
       </view>
     </view>
   </view>

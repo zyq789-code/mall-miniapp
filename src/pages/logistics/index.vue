@@ -13,9 +13,9 @@ const STATUS_TEXT: Record<string, string> = {
 }
 
 const order = ref<Order | null>(null)
-onLoad((q) => {
+onLoad(async (q) => {
   const orderId = typeof q?.orderId === 'string' ? q?.orderId : ''
-  order.value = getOrder(orderId) ?? null
+  order.value = (await getOrder(orderId)) ?? null
 })
 
 const trace = computed<TraceNode[]>(() => {

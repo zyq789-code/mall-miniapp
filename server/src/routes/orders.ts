@@ -125,6 +125,69 @@ router.get('/:id', (req, res) => {
   }
 })
 
+/** Miniapp order create (public, no token). items/address are stored as JSON strings. */
+router.post('/', (req, res) => {
+  try {
+    const body = ((req.body ?? {}) as Record<string, unknown>) ?? {}
+
+    if (typeof body.orderNo !== 'string' || !body.orderNo.trim()) {
+      res.status(400).json({ success: false, message: 'orderNo is required' })
+      return
+    }
+    if (!Array.isArray(body.items) || body.items.length === 0) {
+      res.status(400).json({ success: false, message: 'items must be a non-empty array' })
+      return
+    }
+    if (typeof body.address !== 'object' || body.address === null || Array.isArray(body.address)) {
+      res.status(400).json({ success: false, message: 'address is required' })
+      return
+    }
+    if (typeof body.payAmount !== 'number' || !Number.isFinite(body.payAmount) || body.payAmount < 0) {
+      res.status(400).json({ success: false, message: 'payAmount must be a non-negative number' })
+      return
+    }
+    const status = typeof body.status === 'string' ? body.status : 'pending_pay'
+    if (!VALID_STATUSES.has(status)) {
+      res.status(400).json({ success: false, message: 'status 不合法' })
+      return
+    }
+
+    let id: string
+    if (typeof body.id === 'string' && body.id) {
+      id = body.id
+      if (getOrderById(id)) {
+        res.status(409).json({ success: false, message: '订单已存在' })
+        return
+      }
+    } else {
+      id = `o${Date.now()}`
+    }
+
+    const num = (v: unknown, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def)
+
+    db.prepare(`
+      INSERT INTO orders (id, order_no, status, total_amount, freight, pay_amount, address, items, coupon_deduction, points_deduction, create_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      body.orderNo.trim(),
+      status,
+      num(body.totalAmount, 0),
+      num(body.freight, 0),
+      body.payAmount,
+      JSON.stringify(body.address),
+      JSON.stringify(body.items),
+      num(body.couponDeduction, 0),
+      num(body.pointsDeduction, 0),
+      num(body.createTime, Date.now()),
+    )
+
+    res.status(201).json({ success: true, data: toDTO(getOrderById(id) as OrderRow) })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal error' })
+  }
+})
+
 /** Admin-only: mark a pending-ship order as shipped. */
 router.put('/:id/ship', requireAuth, (req, res) => {
   try {

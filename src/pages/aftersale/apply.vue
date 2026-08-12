@@ -28,9 +28,9 @@ const ineligibleReason = computed(() => {
 })
 const canSubmit = computed(() => !!order.value && eligible.value && !!reason.value.trim())
 
-onLoad((q) => {
+onLoad(async (q) => {
   const orderId = typeof q?.orderId === 'string' ? q?.orderId : ''
-  order.value = getOrder(orderId) ?? null
+  order.value = (await getOrder(orderId)) ?? null
   if (order.value) eligible.value = canApplyAfterSale(order.value, Date.now())
 })
 

@@ -3,9 +3,9 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
 import { goodsRepo } from '../../api/repository'
+import { getOrder } from '../../api/order.api'
 import { formatPrice, formatTime } from '../../utils/format'
 import { useOrderStore } from '../../stores/order'
-import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 // 商品封面映射：onLoad 时异步拉取订单涉及商品，模板从 Map 同步取值
@@ -33,17 +33,19 @@ const id = ref('')
 
 onLoad(async (q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
-  order.value = orderStore.orders.find(o => o.id === id.value) ?? null
+  order.value = (await getOrder(id.value)) ?? null
   await loadCovers()
 })
-function reload() { order.value = orderStore.orders.find(o => o.id === id.value) ?? null }
-function act(updater: (o: Order) => void) {
+async function reload() { order.value = (await getOrder(id.value)) ?? null }
+async function act(updater: (o: Order) => Promise<unknown>) {
   const o = order.value
   if (!o) return
-  tryRun(() => {
-    updater(o)
-    reload()
-  })
+  try {
+    await updater(o)
+    await reload()
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '操作失败', icon: 'none' })
+  }
 }
 const onPay = () => uni.navigateTo({ url: `/pages/order/pay?id=${id.value}` })
 const onCancel = () => act(o => orderStore.doCancel(o))

@@ -2,12 +2,12 @@
 import { ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
+import { getOrder } from '../../api/order.api'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
 import { formatPrice, formatTime } from '../../utils/format'
 import { earnBySpend } from '../../services/points.service'
 import { pointsRate } from '../../services/member.service'
-import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const orderStore = useOrderStore()
@@ -15,46 +15,34 @@ const userStore = useUserStore()
 const order = ref<Order | null>(null)
 const paying = ref(false)
 const id = ref('')
-let timer: ReturnType<typeof setTimeout> | null = null
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = typeof q?.id === 'string' ? q?.id : ''
-  order.value = orderStore.orders.find(o => o.id === id.value) ?? null
+  order.value = (await getOrder(id.value)) ?? null
 })
 onUnload(() => {
-  if (timer) { clearTimeout(timer); timer = null }
   uni.hideLoading()
 })
 
-function doPay() {
+async function doPay() {
   const o = order.value
   if (!o || paying.value) return
   paying.value = true
   uni.showLoading({ title: '支付中' })
-  timer = setTimeout(() => {
-    timer = null
-    try {
-      let next: Order | undefined
-      tryRun(() => { next = orderStore.doPay(o) })
-      if (!next) {
-        // 业务错误已被 tryRun 以 toast 提示，仅收尾
-        uni.hideLoading()
-        paying.value = false
-        return
-      }
-      // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）
-      if (userStore.isLogin()) {
-        userStore.addPoints(earnBySpend(next.payAmount, pointsRate(userStore.level())))
-        userStore.addSpend(next.payAmount)
-      }
-      uni.hideLoading()
-      uni.redirectTo({ url: `/pages/order/detail?id=${next.id}`, fail: () => { paying.value = false } })
-    } catch {
-      uni.hideLoading()
-      paying.value = false
-      uni.showToast({ title: '支付失败', icon: 'none' })
+  try {
+    const next = await orderStore.doPay(o)
+    // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）
+    if (userStore.isLogin()) {
+      userStore.addPoints(earnBySpend(next.payAmount, pointsRate(userStore.level())))
+      userStore.addSpend(next.payAmount)
     }
-  }, 1500)
+    uni.hideLoading()
+    uni.redirectTo({ url: `/pages/order/detail?id=${next.id}`, fail: () => { paying.value = false } })
+  } catch (e) {
+    uni.hideLoading()
+    paying.value = false
+    uni.showToast({ title: e instanceof Error ? e.message : '支付失败', icon: 'none' })
+  }
 }
 </script>
 <template>

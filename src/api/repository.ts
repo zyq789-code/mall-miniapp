@@ -1,22 +1,5 @@
 import type { Goods } from '../models/goods'
-import { API_BASE_URL } from '../utils/config'
-
-// uni.request Promise 封装
-function request<T>(path: string, params?: Record<string, string>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: `${API_BASE_URL}${path}`,
-      method: 'GET',
-      data: params,
-      success: (res) => {
-        const body = res.data as { success?: boolean; data?: T; message?: string } | undefined
-        if (res.statusCode === 200 && body?.success) resolve(body.data as T)
-        else reject(new Error(body?.message || '请求失败'))
-      },
-      fail: (err) => reject(err),
-    })
-  })
-}
+import { request } from './request'
 
 export interface GoodsRepository {
   list(opts?: { categoryId?: string; sort?: 'sales' | 'priceAsc' | 'priceDesc' }): Promise<Goods[]>
@@ -32,7 +15,7 @@ function isOn(g: Goods): boolean {
 export const goodsRepo: GoodsRepository = {
   async list(opts) {
     const data = await request<{ list: Goods[] }>('/products', {
-      ...(opts?.categoryId ? { categoryId: opts.categoryId } : {}),
+      data: { ...(opts?.categoryId ? { categoryId: opts.categoryId } : {}) },
     })
     let r = (data?.list ?? []).filter(isOn)
     if (opts?.sort === 'sales') r.sort((a, b) => b.sales - a.sales)
@@ -45,7 +28,7 @@ export const goodsRepo: GoodsRepository = {
     catch { return undefined }
   },
   async search(keyword) {
-    const data = await request<{ list: Goods[] }>('/products', { keyword })
+    const data = await request<{ list: Goods[] }>('/products', { data: { keyword } })
     return (data?.list ?? []).filter(isOn)
   },
 }

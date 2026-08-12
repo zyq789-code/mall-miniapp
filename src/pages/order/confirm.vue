@@ -72,7 +72,7 @@ function onUsePoints(e: Event) { usePoints.value = (e as unknown as SwitchChange
 const goAddress = () => uni.navigateTo({ url: '/pages/address/list?select=1' })
 const goCoupon = () => uni.navigateTo({ url: '/pages/coupon/mine?select=1' })
 
-function submit() {
+async function submit() {
   if (submitting.value) return            // 防重复提交：狂点只产一单
   if (!address.value) return uni.showToast({ title: '请先添加地址', icon: 'none' })
   if (!items.value.length) return uni.showToast({ title: '没有要结算的商品', icon: 'none' })
@@ -83,19 +83,24 @@ function submit() {
     totalAmount: amounts.value.totalAmount, couponDeduction: couponDeduction.value, pointsDeduction: pointsDeduction.value,
     freight: amounts.value.freight, payAmount: amounts.value.payAmount, address: address.value, createTime: now,
   }
-  // 用券：把选中券标记为已用
-  const usedCoupon = coupon.value
-  if (usedCoupon) {
-    saveCoupons(getCoupons().map(c => (c.id === usedCoupon.id ? { ...c, status: 'used' as const } : c)))
+  try {
+    await orderStore.create(order)
+    // 下单成功后才消费本地资源：用券标记已用
+    const usedCoupon = coupon.value
+    if (usedCoupon) {
+      saveCoupons(getCoupons().map(c => (c.id === usedCoupon.id ? { ...c, status: 'used' as const } : c)))
+    }
+    // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）
+    if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
+    cart.removeBatch(items.value)
+    uni.redirectTo({
+      url: `/pages/order/pay?id=${order.id}`,
+      fail: () => { submitting.value = false },
+    })
+  } catch (e) {
+    submitting.value = false
+    uni.showToast({ title: e instanceof Error ? e.message : '提交订单失败', icon: 'none' })
   }
-  // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）
-  if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
-  orderStore.create(order)
-  cart.removeBatch(items.value)
-  uni.redirectTo({
-    url: `/pages/order/pay?id=${order.id}`,
-    fail: () => { submitting.value = false },
-  })
 }
 </script>
 <template>

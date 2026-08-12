@@ -24,7 +24,7 @@ const goodsName = ref('')
 onLoad(async (q) => {
   orderId.value = typeof q?.orderId === 'string' ? q?.orderId : ''
   goodsId.value = typeof q?.goodsId === 'string' ? q?.goodsId : ''
-  order.value = getOrder(orderId.value) ?? null
+  order.value = (await getOrder(orderId.value)) ?? null
   if (!goodsId.value) goodsId.value = order.value?.items[0]?.goodsId ?? ''
   const g = await goodsRepo.get(goodsId.value)
   goodsName.value = g?.name ?? ''
