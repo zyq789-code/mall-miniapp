@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
+import { getFlashPrice } from '../../mock/flash'
 import GoodsCard from '../../components/ui/GoodsCard.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 import Skeleton from '../../components/ui/Skeleton.vue'
@@ -85,7 +86,7 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
     <Skeleton v-if="loading" />
     <EmptyView v-else-if="!list.length" text="没有找到相关商品" />
     <view v-else class="grid">
-      <GoodsCard v-for="g in list" :key="g.id" :goods="g" @tap="goDetail" />
+      <GoodsCard v-for="g in list" :key="g.id" :goods="g" :sale-price="getFlashPrice(g.id)" @tap="goDetail" />
     </view>
   </view>
 </template>

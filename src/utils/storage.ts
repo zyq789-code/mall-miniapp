@@ -17,5 +17,5 @@ export const KEYS = {
   cart: 'cart', orders: 'orders', addresses: 'addresses',
   user: 'user', coupons: 'coupons', aftersales: 'aftersales',
   favorites: 'favorites', footprints: 'footprints', selectedCoupon: 'selectedCoupon',
-  lastSignDay: 'lastSignDay', reviews: 'reviews',
+  lastSignDay: 'lastSignDay', reviews: 'reviews', flashPurchased: 'flashPurchased',
 } as const

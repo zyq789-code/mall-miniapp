@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { Goods } from '../../models/goods'
 import { categories } from '../../mock/goods'
 import { goodsRepo } from '../../api/repository'
+import { getFlashPrice } from '../../mock/flash'
 import GoodsCard from '../../components/ui/GoodsCard.vue'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
@@ -26,7 +27,7 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
     <scroll-view scroll-y class="main">
       <view v-if="!goods.length" class="wrap"><EmptyView text="该分类暂无商品" /></view>
       <view v-else class="grid">
-        <GoodsCard v-for="g in goods" :key="g.id" :goods="g" @tap="goDetail" />
+        <GoodsCard v-for="g in goods" :key="g.id" :goods="g" :sale-price="getFlashPrice(g.id)" @tap="goDetail" />
       </view>
     </scroll-view>
   </view>

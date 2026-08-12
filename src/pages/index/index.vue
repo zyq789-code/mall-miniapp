@@ -4,7 +4,7 @@ import { onLoad, onUnload, onPullDownRefresh } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
 import { banners, categories } from '../../mock/goods'
-import { flashSales } from '../../mock/flash'
+import { flashSales, getFlashPrice } from '../../mock/flash'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const loading = ref(true)
@@ -97,7 +97,7 @@ function countdown(): string {
     <Skeleton v-if="loading" />
     <EmptyView v-else-if="!list.length" text="暂无商品" />
     <view v-else class="grid">
-      <GoodsCard v-for="g in list" :key="g.id" :goods="g" @tap="goDetail" />
+      <GoodsCard v-for="g in list" :key="g.id" :goods="g" :sale-price="getFlashPrice(g.id)" @tap="goDetail" />
     </view>
   </view>
 </template>
