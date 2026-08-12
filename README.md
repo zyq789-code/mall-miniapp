@@ -76,22 +76,31 @@ mock（商品、优惠券、秒杀等模拟数据）
 - 纯函数不依赖 uni-app 运行时，Vitest 在 Node 环境即可直接测试，无需 mock 平台 API，这也是 59 个单测可以稳定快速运行的原因。
 - 数据访问被 `api` 层隔离：当前使用本地 storage + mock 仓库，未来接入真实后端只需重写 `api` 层，`services` 与页面零改动。
 
-## 如何运行
+## 如何运行（全栈）
+
+项目分三部分：**后端 API**（Express+SQLite）、**管理后台**（React+AntD）、**小程序/H5**（uni-app）。
 
 ```bash
-npm i            # 安装依赖
-npm run dev:h5   # H5 预览
-npm run test     # 运行单元测试（59 tests）
-npm run build:h5 # 构建 H5 产物
+# ① 后端 API（端口 3000）
+cd server && npm i && npm run dev
+
+# ② 管理后台（端口 5173，浏览器打开 http://localhost:5173，账号 admin/admin123）
+cd admin && npm i && npm run dev
+
+# ③ 小程序/H5（根目录）
+npm i
+npm run dev:h5        # H5 预览（商品/订单从后端取数）
+npm run test          # 运行单元测试（59 tests）
+npm run dev:mp-weixin # 微信开发者工具预览
 ```
 
-> 支持多端发行，如 `npm run dev:mp-weixin` / `build:mp-weixin` 编译微信小程序。
+> 小程序商品/订单数据由后端提供；管理后台增删商品/上下架/发货，小程序实时可见。
 
 ## 部署
 
-- **H5 在线预览（Vercel，国际访问）**：`https://mall-miniapp.vercel.app`
-- **微信小程序体验版**：`manifest.json` 中的小程序 appid 待配置，配置后通过微信开发者工具上传 → 设为体验版 → 生成二维码（国内可直接扫码访问）。
-- 说明：Vercel 域名在国内访问受限，国内演示以小程序体验版为准。
+- **H5 在线预览（Vercel，国际访问）**：`https://mall-miniapp.vercel.app`（此为全 mock 版本；全栈版需后端配合）
+- **微信小程序体验版**：appid 已配置，通过微信开发者工具上传 → 设为体验版 → 生成二维码。
+- **全栈部署说明**：商品/订单已接真后端。体验版/线上版要显示服务器数据，后端需部署到公网 HTTPS 地址（微信要求 request 合法域名 + HTTPS + 备案），并在 `src/utils/config.ts` 改 `API_BASE_URL`。国内开发调试可在开发者工具勾选"不校验合法域名"用 `http://localhost:3000`。
 
 ## 目录结构
 
