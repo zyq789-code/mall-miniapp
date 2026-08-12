@@ -30,3 +30,8 @@ coverage/
 *.sw?
 .vercel
 .gstack/
+server/node_modules/
+server/dist/
+server/*.db
+admin/node_modules/
+admin/dist/
