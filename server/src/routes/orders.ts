@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -125,7 +126,7 @@ router.get('/:id', (req, res) => {
 })
 
 /** Admin-only: mark a pending-ship order as shipped. */
-router.put('/:id/ship', (req, res) => {
+router.put('/:id/ship', requireAuth, (req, res) => {
   try {
     const existing = getOrderById(req.params.id)
     if (!existing) {

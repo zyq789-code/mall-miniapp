@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -188,7 +189,7 @@ router.get('/', (req, res) => {
   }
 })
 
-router.post('/', (req, res) => {
+router.post('/', requireAuth, (req, res) => {
   try {
     const result = validateProductInput(req.body as Record<string, unknown>, false)
     if (!result.ok) {
@@ -229,7 +230,7 @@ router.post('/', (req, res) => {
   }
 })
 
-router.put('/:id/status', (req, res) => {
+router.put('/:id/status', requireAuth, (req, res) => {
   try {
     const status = (req.body as Record<string, unknown>).status
     if (status !== 'on' && status !== 'off') {
@@ -249,7 +250,7 @@ router.put('/:id/status', (req, res) => {
   }
 })
 
-router.put('/:id', (req, res) => {
+router.put('/:id', requireAuth, (req, res) => {
   try {
     const existing = getProductById(req.params.id)
     if (!existing) {
@@ -286,7 +287,7 @@ router.put('/:id', (req, res) => {
   }
 })
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireAuth, (req, res) => {
   try {
     const existing = getProductById(req.params.id)
     if (!existing) {
