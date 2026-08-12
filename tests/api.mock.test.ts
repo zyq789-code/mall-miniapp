@@ -14,7 +14,7 @@ describe('mock goods', () => {
     expect(desc[0].price).toBeGreaterThanOrEqual(desc[1].price)
   })
   it('collectCategoryIds 展开一级分类到后代', () => {
-    expect(collectCategoryIds('c1')).toEqual(['c1', 'c11'])
+    expect(collectCategoryIds('c1')).toEqual(['c1', 'c11', 'c12'])
     expect(collectCategoryIds('c11')).toEqual(['c11'])
   })
   it('一级分类筛选可命中叶子商品', () => {
