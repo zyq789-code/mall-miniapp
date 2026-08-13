@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App, Button, Card, Form, Image, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, Upload } from 'antd'
+import { App, Button, Card, Divider, Form, Image, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, Upload } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import {
@@ -11,7 +11,9 @@ import {
   updateProduct,
   uploadImage,
 } from '../api/products'
-import type { Category, Product, ProductInput } from '../api/products'
+import type { Category, Product, ProductInput, SpecGroup } from '../api/products'
+import { generateSkuRows } from '../lib/sku'
+import type { SkuRow } from '../lib/sku'
 
 const { Text } = Typography
 
@@ -89,6 +91,8 @@ export default function Products() {
   const [coverPreview, setCoverPreview] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null)
+  const [specsState, setSpecsState] = useState<SpecGroup[]>([])
+  const [skuRows, setSkuRows] = useState<SkuRow[]>([])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -135,6 +139,8 @@ export default function Products() {
     setEditing(null)
     form.resetFields()
     setCoverPreview('')
+    setSpecsState([])
+    setSkuRows([])
     setModalOpen(true)
   }
 
@@ -152,8 +158,66 @@ export default function Products() {
       cover: record.cover,
     })
     setCoverPreview(record.cover || '')
+    const specs = record.specs ?? []
+    const existing = (record.skus ?? []).map((s) => ({
+      attrs: s.attrs,
+      price: s.price / 100,
+      stock: s.stock,
+    }))
+    setSpecsState(specs)
+    setSkuRows(generateSkuRows(specs, existing, { price: record.price / 100, stock: 0 }))
     setModalOpen(true)
   }
+
+  /** 表单当前商品价（元），作为新 SKU 组合的默认价。 */
+  const getBasePriceYuan = (): number => {
+    const value = form.getFieldValue('priceYuan')
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0
+  }
+
+  /** 规格变化后按笛卡尔积刷新 SKU 表格，尽量沿用已填价格/库存。 */
+  const refreshSkuRows = (specs: SpecGroup[]) => {
+    setSkuRows(generateSkuRows(specs, skuRows, { price: getBasePriceYuan(), stock: 0 }))
+  }
+
+  const addSpec = () => {
+    const next = [...specsState, { name: '', values: [] }]
+    setSpecsState(next)
+    refreshSkuRows(next)
+  }
+
+  const updateSpecName = (index: number, name: string) => {
+    const next = specsState.map((s, i) => (i === index ? { ...s, name } : s))
+    setSpecsState(next)
+    refreshSkuRows(next)
+  }
+
+  const updateSpecValues = (index: number, values: string[]) => {
+    const next = specsState.map((s, i) => (i === index ? { ...s, values } : s))
+    setSpecsState(next)
+    refreshSkuRows(next)
+  }
+
+  const removeSpec = (index: number) => {
+    const next = specsState.filter((_, i) => i !== index)
+    setSpecsState(next)
+    refreshSkuRows(next)
+  }
+
+  const updateSkuRow = (index: number, patch: Partial<SkuRow>) => {
+    setSkuRows((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
+
+  const removeSkuRow = (index: number) => {
+    setSkuRows((rows) => rows.filter((_, i) => i !== index))
+  }
+
+  /** attrs 组合的稳定 key（SKU 表格 rowKey）。 */
+  const skuRowKey = (row: SkuRow): string =>
+    Object.keys(row.attrs)
+      .sort()
+      .map((k) => `${k}:${row.attrs[k]}`)
+      .join('|')
 
   const handleSubmit = async () => {
     let values: ProductFormValues
@@ -163,11 +227,24 @@ export default function Products() {
       return
     }
 
+    const invalidSpec = specsState.find(
+      (s) => !s.name.trim() || s.values.length === 0 || s.values.some((v) => !v.trim()),
+    )
+    if (invalidSpec) {
+      message.error('每个规格维度需填写名称，且至少包含一个值')
+      return
+    }
+    if (specsState.length > 0 && skuRows.length === 0) {
+      message.error('请至少保留一个 SKU')
+      return
+    }
+
+    const basePrice = Math.round(values.priceYuan * 100)
     const payload: ProductInput = {
       name: values.name.trim(),
       subtitle: values.subtitle,
       categoryId: values.categoryId,
-      price: Math.round(values.priceYuan * 100),
+      price: basePrice,
       originalPrice:
         values.originalPriceYuan !== undefined && values.originalPriceYuan !== null
           ? Math.round(values.originalPriceYuan * 100)
@@ -175,6 +252,14 @@ export default function Products() {
       stock: values.stock,
       tags: values.tags ?? [],
       cover: values.cover,
+      specs: specsState,
+      // 提交时 price 由元转分；默认价 0 时兜底为商品价，避免空价 SKU 被后端拒收。
+      skus: skuRows.map((row, i) => ({
+        id: `${editing?.id ?? 'g'}-s${i + 1}`,
+        attrs: row.attrs,
+        price: Math.round(row.price * 100) || basePrice,
+        stock: row.stock,
+      })),
     }
 
     setSubmitting(true)
@@ -296,6 +381,53 @@ export default function Products() {
     },
   ]
 
+  /** SKU 表格列：每个规格维度一列 + 价格 + 库存 + 删除。 */
+  const skuColumns: ColumnsType<SkuRow> = [
+    ...specsState.map((spec, index) => ({
+      title: spec.name || '规格',
+      key: `spec-${index}`,
+      render: (_: unknown, row: SkuRow) => row.attrs[spec.name],
+    })),
+    {
+      title: '价格（元）',
+      key: 'price',
+      width: 120,
+      render: (_, row, index) => (
+        <InputNumber
+          min={0.01}
+          precision={2}
+          style={{ width: '100%' }}
+          value={row.price}
+          onChange={(value) => updateSkuRow(index, { price: Number(value ?? 0) })}
+        />
+      ),
+    },
+    {
+      title: '库存',
+      key: 'stock',
+      width: 110,
+      render: (_, row, index) => (
+        <InputNumber
+          min={0}
+          precision={0}
+          style={{ width: '100%' }}
+          value={row.stock}
+          onChange={(value) => updateSkuRow(index, { stock: Number(value ?? 0) })}
+        />
+      ),
+    },
+    {
+      title: '',
+      key: 'action',
+      width: 64,
+      render: (_, _row, index) => (
+        <Button type="link" size="small" danger onClick={() => removeSkuRow(index)}>
+          删除
+        </Button>
+      ),
+    },
+  ]
+
   return (
     <Card>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} align="center">
@@ -340,7 +472,7 @@ export default function Products() {
         onOk={() => void handleSubmit()}
         onCancel={() => setModalOpen(false)}
         confirmLoading={submitting}
-        width={520}
+        width={720}
       >
         <Form<ProductFormValues> form={form} layout="vertical" initialValues={{ stock: 0, tags: [] }}>
           <Form.Item name="cover" label="商品图片">
@@ -394,6 +526,51 @@ export default function Products() {
           <Form.Item name="tags" label="标签">
             <Select mode="tags" open={false} suffixIcon={null} placeholder="输入后回车，如 包邮、正品" />
           </Form.Item>
+
+          <Divider orientation="left" plain>
+            规格与 SKU
+          </Divider>
+          {specsState.map((spec, index) => (
+            <div key={index} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8 }}>
+              <Input
+                style={{ width: 180 }}
+                placeholder="规格名称，如 颜色"
+                value={spec.name}
+                onChange={(e) => updateSpecName(index, e.target.value)}
+              />
+              <Select
+                mode="tags"
+                open={false}
+                suffixIcon={null}
+                style={{ flex: 1 }}
+                placeholder="输入值后回车，如 黑色"
+                value={spec.values}
+                onChange={(values) => updateSpecValues(index, values)}
+              />
+              <Button type="text" danger onClick={() => removeSpec(index)}>
+                删除
+              </Button>
+            </div>
+          ))}
+          <Button type="dashed" block icon={<PlusOutlined />} onClick={addSpec} style={{ marginBottom: 8 }}>
+            添加规格维度
+          </Button>
+
+          {specsState.length > 0 && (
+            <>
+              <Divider orientation="left" plain>
+                SKU 列表
+              </Divider>
+              <Table<SkuRow>
+                rowKey={skuRowKey}
+                size="small"
+                pagination={false}
+                columns={skuColumns}
+                dataSource={skuRows}
+                scroll={{ x: 640 }}
+              />
+            </>
+          )}
         </Form>
       </Modal>
     </Card>

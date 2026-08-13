@@ -1,5 +1,20 @@
 import { request } from './client'
 
+/** 规格维度：如 { name: '颜色', values: ['黑', '白'] }（对齐后端/小程序 models）。 */
+export interface SpecGroup {
+  name: string
+  values: string[]
+}
+
+/** 单个 SKU：attrs 如 { 颜色: '黑', 内存: '128G' }；price 以分为单位。 */
+export interface Sku {
+  id: string
+  attrs: Record<string, string>
+  price: number // 分
+  stock: number
+  image?: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -12,6 +27,8 @@ export interface Product {
   tags: string[]
   status: 'on' | 'off'
   cover: string
+  specs: SpecGroup[]
+  skus: Sku[]
   createdAt: number
 }
 
@@ -35,6 +52,8 @@ export interface ProductInput {
   stock?: number
   tags?: string[]
   cover?: string
+  specs?: SpecGroup[]
+  skus?: Sku[]
 }
 
 export interface Category {
