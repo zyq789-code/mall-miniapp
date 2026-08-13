@@ -10,6 +10,15 @@ const PORT = Number(process.env.PORT) || 3000
 app.use(cors())
 app.use(express.json())
 
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'mall-api',
+    status: 'running',
+    endpoints: ['/api/health', '/api/products', '/api/orders', '/api/auth/login'],
+    note: '这是一个纯 API 服务，前端（小程序 H5/管理后台）通过 /api 调用',
+  })
+})
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: Date.now() })
 })
