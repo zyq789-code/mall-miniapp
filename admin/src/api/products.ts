@@ -34,6 +34,7 @@ export interface ProductInput {
   originalPrice?: number // 分
   stock?: number
   tags?: string[]
+  cover?: string
 }
 
 export interface Category {
@@ -103,4 +104,9 @@ export function setProductStatus(id: string, status: 'on' | 'off'): Promise<Prod
 /** DELETE /products/:id */
 export function deleteProduct(id: string): Promise<void> {
   return request<void>(`/products/${id}`, { method: 'DELETE' })
+}
+
+/** POST /api/upload —— 上传 base64 图片，返回 { url: "/uploads/mall/xxx.png" }（管理员鉴权由 client 带 token）。 */
+export function uploadImage(data: string): Promise<{ url: string }> {
+  return request<{ url: string }>('/upload', { method: 'POST', body: { data } })
 }

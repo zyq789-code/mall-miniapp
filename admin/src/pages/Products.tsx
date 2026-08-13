@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { App, Button, Card, Form, Image, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography } from 'antd'
+import { App, Button, Card, Form, Image, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Typography, Upload } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import {
@@ -9,6 +9,7 @@ import {
   getProducts,
   setProductStatus,
   updateProduct,
+  uploadImage,
 } from '../api/products'
 import type { Category, Product, ProductInput } from '../api/products'
 
@@ -32,6 +33,7 @@ interface ProductFormValues {
   originalPriceYuan?: number
   stock: number
   tags?: string[]
+  cover?: string
 }
 
 /** 封面列：后台访问不到小程序本地静态图，图加载失败时退化为商品名首字占位。 */
@@ -84,6 +86,7 @@ export default function Products() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null)
 
@@ -131,6 +134,7 @@ export default function Products() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
+    setCoverPreview('')
     setModalOpen(true)
   }
 
@@ -145,7 +149,9 @@ export default function Products() {
       originalPriceYuan: record.originalPrice > 0 ? record.originalPrice / 100 : undefined,
       stock: record.stock,
       tags: record.tags,
+      cover: record.cover,
     })
+    setCoverPreview(record.cover || '')
     setModalOpen(true)
   }
 
@@ -168,6 +174,7 @@ export default function Products() {
           : undefined,
       stock: values.stock,
       tags: values.tags ?? [],
+      cover: values.cover,
     }
 
     setSubmitting(true)
@@ -336,6 +343,36 @@ export default function Products() {
         width={520}
       >
         <Form<ProductFormValues> form={form} layout="vertical" initialValues={{ stock: 0, tags: [] }}>
+          <Form.Item name="cover" label="商品图片">
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              showUploadList={false}
+              accept="image/*"
+              beforeUpload={(file) => {
+                const reader = new FileReader()
+                reader.onload = async () => {
+                  try {
+                    const res = await uploadImage(reader.result as string)
+                    const url = `http://8.163.34.25${res.url}`
+                    form.setFieldValue('cover', url)
+                    setCoverPreview(url)
+                    message.success('图片上传成功')
+                  } catch (e) {
+                    message.error(getErrorMessage(e))
+                  }
+                }
+                reader.readAsDataURL(file)
+                return false
+              }}
+            >
+              {coverPreview ? (
+                <img src={coverPreview} alt="封面" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ color: '#999' }}>+ 上传图片</div>
+              )}
+            </Upload>
+          </Form.Item>
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="商品名称" maxLength={50} />
           </Form.Item>
