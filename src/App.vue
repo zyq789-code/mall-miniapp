@@ -17,4 +17,18 @@ page {
   color: #fff;
   border-radius: $radius;
 }
+
+/* 桌面端：手机宽度居中显示，避免拉伸（模拟手机外框） */
+@media (min-width: 600px) {
+  #app {
+    max-width: 540px;
+    margin: 0 auto;
+    min-height: 100vh;
+    box-shadow: 0 0 40px rgba(31, 41, 55, 0.1);
+    background: $card;
+  }
+  body {
+    background: #eef1f5;
+  }
+}
 </style>
