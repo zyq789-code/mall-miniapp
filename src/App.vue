@@ -30,13 +30,16 @@ page {
     min-height: 100vh;
     box-shadow: 0 0 0 10px #20242c, 0 24px 60px rgba(0, 0, 0, 0.35);
   }
-  /* 底部导航栏：与手机框对齐居中（fixed 元素相对视口，需单独处理） */
+  /* 底部导航栏：显式 left/right:0 + 固定宽 + margin:auto 居中（对齐手机框）
+     uni-app 的 tabbar 内外两层都是 position:fixed，两层都要处理 */
   .uni-tabbar-bottom,
-  .uni-tabbar-top {
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%);
+  .uni-tabbar-top,
+  .uni-tabbar-bottom .uni-tabbar,
+  .uni-tabbar-top .uni-tabbar {
+    left: 0 !important;
+    right: 0 !important;
     width: 390px !important;
+    margin: 0 auto !important;
   }
 }
 </style>
