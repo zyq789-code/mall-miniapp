@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { Goods } from '../../models/goods'
+import { getPriceRange } from '../../services/sku.service'
 import PriceTag from './PriceTag.vue'
 import { formatPrice } from '../../utils/format'
-defineProps<{ goods: Goods; salePrice?: number | null }>()
+const props = defineProps<{ goods: Goods; salePrice?: number | null }>()
 const emit = defineEmits<{ (e: 'tap', id: string): void }>()
+const range = computed(() => getPriceRange(props.goods))
+const price = computed(() => range.value?.min ?? props.goods.price)
+const suffix = computed(() => (range.value && range.value.min < range.value.max ? '起' : ''))
 </script>
 <template>
   <view class="card goods" @tap="emit('tap', goods.id)">
@@ -17,7 +22,7 @@ const emit = defineEmits<{ (e: 'tap', id: string): void }>()
       <text class="sale-cur">{{ formatPrice(salePrice) }}</text>
       <text class="sale-orig">{{ formatPrice(goods.price) }}</text>
     </view>
-    <PriceTag v-else :price="goods.price" :original-price="goods.originalPrice" size="sm" />
+    <PriceTag v-else :price="price" :original-price="goods.originalPrice" size="sm" :suffix="suffix" />
   </view>
 </template>
 <style scoped lang="scss">

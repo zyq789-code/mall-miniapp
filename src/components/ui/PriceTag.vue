@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { formatPrice } from '../../utils/format'
-const props = defineProps<{ price: number; originalPrice?: number; size?: 'sm' | 'md' }>()
+const props = defineProps<{ price: number; originalPrice?: number; size?: 'sm' | 'md'; suffix?: string }>()
 </script>
 <template>
   <view class="price-tag">
     <text class="cur" :class="size">{{ formatPrice(props.price) }}</text>
+    <text v-if="props.suffix" class="suffix">{{ props.suffix }}</text>
     <text v-if="props.originalPrice && props.originalPrice > props.price" class="orig">{{ formatPrice(props.originalPrice) }}</text>
   </view>
 </template>
@@ -16,6 +17,11 @@ const props = defineProps<{ price: number; originalPrice?: number; size?: 'sm' |
 }
 .cur.sm {
   font-size: 26rpx;
+}
+.suffix {
+  color: $price;
+  font-size: 24rpx;
+  margin-left: 6rpx;
 }
 .orig {
   color: $text3;

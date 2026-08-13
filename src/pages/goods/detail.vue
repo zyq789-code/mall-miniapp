@@ -9,6 +9,7 @@ import { storage, KEYS } from '../../utils/storage'
 import { formatPrice, formatTime } from '../../utils/format'
 import { flashSales } from '../../mock/flash'
 import { isFlashActive } from '../../services/flash.service'
+import { getPriceRange } from '../../services/sku.service'
 import PriceTag from '../../components/ui/PriceTag.vue'
 import SkuPopup from '../../components/ui/SkuPopup.vue'
 
@@ -16,6 +17,7 @@ const id = ref('')
 const goods = ref<Goods>()
 const loading = ref(true)
 const showSku = ref(false)
+const action = ref<'cart' | 'buy'>('cart')
 const fav = ref(false)
 const cartStore = useCartStore()
 
@@ -44,14 +46,16 @@ function toggleFav(): void {
 
 function onConfirm(sku: Sku, quantity: number) {
   cartStore.add({ goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() })
-  uni.showToast({ title: '已加入购物车', icon: 'success' })
   showSku.value = false
+  if (action.value === 'buy') {
+    uni.navigateTo({ url: '/pages/order/confirm' })
+  } else {
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+  }
 }
-function buy() {
-  if (!goods.value?.skus.length) return
-  const sku = goods.value.skus[0]
-  cartStore.add({ goodsId: goods.value.id, skuId: sku.id, quantity: 1, checked: true, addedAt: Date.now() })
-  uni.navigateTo({ url: '/pages/order/confirm' })
+function openSku(mode: 'cart' | 'buy'): void {
+  action.value = mode
+  showSku.value = true
 }
 const goReviews = () => uni.navigateTo({ url: `/pages/review/list?goodsId=${id.value}` })
 
@@ -71,6 +75,10 @@ const salePrice = computed<number | null>(() => {
   const f = flashSales.find(x => x.goodsId === id.value)
   return f && isFlashActive(f, Date.now()) ? f.price : null
 })
+
+// —— SKU 价格区间（min 起；多档价格时加"起"）——
+const priceRange = computed(() => (goods.value ? getPriceRange(goods.value) : null))
+const showFrom = computed(() => priceRange.value !== null && priceRange.value.min < priceRange.value.max)
 </script>
 <template>
   <Skeleton v-if="loading" />
@@ -87,7 +95,7 @@ const salePrice = computed<number | null>(() => {
           <text class="sale-price">{{ formatPrice(salePrice) }}</text>
           <text class="orig-price">{{ formatPrice(goods.originalPrice) }}</text>
         </template>
-        <PriceTag v-else :price="goods.price" :original-price="goods.originalPrice" />
+        <PriceTag v-else :price="priceRange?.min ?? goods.price" :original-price="goods.originalPrice" :suffix="showFrom ? '起' : ''" />
       </view>
       <view class="name">{{ goods.name }}</view>
       <view class="sub">{{ goods.subtitle }}</view>
@@ -126,8 +134,8 @@ const salePrice = computed<number | null>(() => {
 
     <view class="bottom-bar">
       <view class="fav" @tap="toggleFav"><text class="heart" :class="{ on: fav }">{{ fav ? '❤' : '♡' }}</text><text class="fav-t">收藏</text></view>
-      <view class="b-item" @tap="showSku = true">加入购物车</view>
-      <view class="b-item primary" @tap="buy">立即购买</view>
+      <view class="b-item" @tap="openSku('cart')">加入购物车</view>
+      <view class="b-item primary" @tap="openSku('buy')">立即购买</view>
     </view>
     <SkuPopup :goods="goods" :show="showSku" @update:show="v => showSku = v" @confirm="onConfirm" />
   </view>
