@@ -18,28 +18,23 @@ page {
   border-radius: $radius;
 }
 
-/* 桌面端：逼真手机框——手机宽度居中 + 黑色设备边框 + 桌面渐变背景 */
-@media (min-width: 600px) {
-  body {
-    background: linear-gradient(135deg, #e2e6ec 0%, #b6bfcc 100%);
-  }
-  /* 手机屏幕外框 */
-  #app {
-    width: 390px;
-    margin: 0 auto;
-    min-height: 100vh;
-    box-shadow: 0 0 0 10px #20242c, 0 24px 60px rgba(0, 0, 0, 0.35);
-  }
-  /* 底部导航栏：显式 left/right:0 + 固定宽 + margin:auto 居中（对齐手机框）
-     uni-app 的 tabbar 内外两层都是 position:fixed，两层都要处理 */
-  .uni-tabbar-bottom,
-  .uni-tabbar-top,
-  .uni-tabbar-bottom .uni-tabbar,
-  .uni-tabbar-top .uni-tabbar {
-    left: 0 !important;
-    right: 0 !important;
-    width: 390px !important;
-    margin: 0 auto !important;
-  }
+/* 修复 H5 端 tabBar 偏移：让页面在 uni-page-wrapper 内部滚动，窗口不滚动 */
+html,
+body,
+uni-app,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+uni-page-wrapper {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+/* 修复 uni-app H5 tabBar 定位偏差：把它的下边对齐视口底部 */
+.uni-tabbar-bottom,
+.uni-tabbar-top {
+  bottom: 0 !important;
+  top: auto !important;
 }
 </style>
