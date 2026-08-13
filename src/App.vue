@@ -30,5 +30,12 @@ page {
   body {
     background: #eef1f5;
   }
+  /* 底部导航栏同样限宽居中（fixed 元素不受 #app 约束，需单独处理） */
+  uni-tabbar {
+    max-width: 540px;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+  }
 }
 </style>
