@@ -39,7 +39,7 @@ const items = computed<OrderItem[]>(() =>
     if (!g) return null
     const sku = g.skus.find(s => s.id === i.skuId)
     if (!sku) return null
-    return { goodsId: g.id, skuId: sku.id, name: g.name, image: g.cover, spec: sku.spec, price: sku.price, quantity: i.quantity }
+    return { goodsId: g.id, skuId: sku.id, name: g.name, image: g.cover, spec: Object.values(sku.attrs).join(' / '), price: sku.price, quantity: i.quantity }
   }).filter((x): x is OrderItem => x !== null),
 )
 const userCoupons = ref<UserCoupon[]>([])

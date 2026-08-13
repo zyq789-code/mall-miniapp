@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
-import type { Goods } from '../../models/goods'
+import type { Goods, Sku } from '../../models/goods'
 import { useCartStore } from '../../stores/cart'
 import { goodsRepo } from '../../api/repository'
 import { formatPrice } from '../../utils/format'
@@ -27,6 +27,7 @@ onShow(() => { cart.sync(); loadGoods() })
 const goodsOf = (goodsId: string) => goodsMap.value[goodsId]
 const skuOf = (goodsId: string, skuId: string) => goodsOf(goodsId)?.skus.find(s => s.id === skuId)
 const skuPrice = (goodsId: string, skuId: string) => skuOf(goodsId, skuId)?.price ?? 0
+const specText = (sku: Sku | undefined): string => (sku ? Object.values(sku.attrs).join(' / ') : '')
 const checkedAmount = computed(() => calcCheckedAmount(list.value, skuPrice))
 const allChecked = computed(() => countChecked(list.value) === list.value.length && list.value.length > 0)
 const onToggleAll = () => cart.toggleAll(!allChecked.value)
@@ -47,7 +48,7 @@ const checkout = () => {
         <image :src="goodsOf(it.goodsId)?.cover" class="pic" mode="aspectFill" />
         <view class="mid">
           <view class="name">{{ goodsOf(it.goodsId)?.name }}</view>
-          <view class="spec">{{ skuOf(it.goodsId, it.skuId)?.spec }}</view>
+          <view class="spec">{{ specText(skuOf(it.goodsId, it.skuId)) }}</view>
           <view class="row"><text class="price">{{ formatPrice(skuPrice(it.goodsId, it.skuId)) }}</text><Stepper :model-value="it.quantity" :max="skuOf(it.goodsId, it.skuId)?.stock || 99" @update:model-value="q => onQty(it.goodsId, it.skuId, q)" /></view>
         </view>
         <view class="del" @tap="onRemove(it.goodsId, it.skuId)">删除</view>

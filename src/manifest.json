@@ -71,8 +71,7 @@
     "h5" : {
         "router" : {
             "base" : "/mall/"
-        },
-        "maxWidth" : 540
+        }
     },
     "vueVersion" : "3"
 }

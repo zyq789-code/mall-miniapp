@@ -1,4 +1,5 @@
-import type { Goods, Category, Banner } from '../models/goods'
+import type { Goods, Category, Banner, Sku, SpecGroup } from '../models/goods'
+import { generateSkus } from '../services/sku.service'
 
 export const categories: Category[] = [
   { id: 'c1', name: '手机数码', children: [{ id: 'c11', name: '手机' }, { id: 'c12', name: '耳机数码' }].map(c => ({ ...c, children: [] })) },
@@ -14,36 +15,74 @@ export const banners: Banner[] = [
   { id: 'b2', image: '/static/img/banner2.png', goodsId: 'g9' },
 ]
 
-export function makeGoods(id: string, name: string, categoryId: string, price: number, subtitle: string, stock = 100, sales = 0, tags = ['包邮', '正品']): Goods {
+/** 逐 SKU 调价/调库存：返回修改后的 SKU */
+export type SkuTuner = (sku: Sku, index: number) => Sku
+
+/**
+ * 生成多规格商品：由 specs 经 generateSkus 产出全部 SKU（SKU id 统一加商品前缀保持全局唯一）。
+ * goods.price = 最低 SKU 价；goods.stock = 各 SKU 库存之和。
+ */
+export function makeGoods(
+  id: string,
+  name: string,
+  categoryId: string,
+  price: number,
+  subtitle: string,
+  specs: SpecGroup[],
+  tune?: SkuTuner,
+  stock = 100,
+  sales = 0,
+  tags = ['包邮', '正品'],
+): Goods {
+  const skus = generateSkus(specs, price, stock)
+    .map((s, i) => ({ ...s, id: `${id}-s${i + 1}` }))
+    .map((s, i) => (tune ? tune(s, i) : s))
+  const minPrice = Math.min(...skus.map(s => s.price))
   return {
     id, name, subtitle, cover: `/static/img/${id}.png`, images: [`/static/img/${id}.png`],
-    price, originalPrice: Math.round(price * 1.3), categoryId, tags, sales, stock,
+    price: minPrice, originalPrice: Math.round(minPrice * 1.3), categoryId, tags, sales,
+    stock: skus.reduce((sum, s) => sum + s.stock, 0),
     desc: `${name}，${subtitle}。甄选品质，7天无理由退换，正品保障，全国包邮。`,
-    skus: [
-      { id: `${id}-s1`, spec: '标准款', price, stock },
-      { id: `${id}-s2`, spec: '尊享款', price: price + Math.round(price * 0.2), stock },
-    ],
+    specs, skus,
     status: 'on',
   }
 }
 
 export const goods: Goods[] = [
-  makeGoods('g1', '旗舰智能手机 5G', 'c11', 499900, '骁龙旗舰芯片 120Hz高刷屏', 100, 4520),
-  makeGoods('g2', '轻薄笔记本电脑', 'c11', 699900, '2.8K屏 全金属机身', 100, 1890),
-  makeGoods('g3', '真无线降噪耳机', 'c12', 69900, '主动降噪 30小时续航', 100, 3260),
-  makeGoods('g4', '便携蓝牙音箱', 'c12', 19900, 'IPX7防水 户外必备', 100, 2130),
-  makeGoods('g5', '男士休闲夹克', 'c21', 39900, '春秋百搭 立领防风', 100, 1560),
-  makeGoods('g6', '纯棉白T恤', 'c21', 8900, '新疆长绒棉 不起球', 100, 2840),
-  makeGoods('g7', '法式碎花连衣裙', 'c22', 25900, '收腰显瘦 温柔气质', 100, 1420),
-  makeGoods('g8', '坚果零食大礼包', 'c31', 12900, '每日坚果 混合装', 100, 3680),
-  makeGoods('g9', '进口蓝山咖啡豆', 'c31', 8900, '中度烘焙 醇香回甘', 100, 2380),
-  makeGoods('g10', '烟酰胺美白精华', 'c41', 32900, '提亮肤色 淡化痘印', 100, 2950),
-  makeGoods('g11', '氨基酸温和洁面', 'c41', 7900, '氨基酸配方 温和不紧绷', 100, 3420),
-  makeGoods('g12', '麦饭石不粘炒锅', 'c51', 19900, '少油不粘 电磁炉通用', 100, 1970),
-  makeGoods('g13', '北欧陶瓷餐具套装', 'c51', 16900, '12件套 简约ins风', 100, 1240),
-  makeGoods('g14', '全棉四件套', 'c52', 39900, '60支长绒棉 亲肤透气', 100, 2680),
-  makeGoods('g15', '智能运动手环', 'c61', 24900, '心率血氧监测 50米防水', 100, 3150),
-  makeGoods('g16', '加厚防滑瑜伽垫', 'c61', 9900, '10mm加厚 防滑回弹', 100, 2080),
+  makeGoods('g1', '旗舰智能手机 5G', 'c11', 499900, '骁龙旗舰芯片 120Hz高刷屏',
+    [{ name: '颜色', values: ['黑', '白'] }, { name: '内存', values: ['128G', '256G'] }],
+    s => (s.attrs['内存'] === '256G' ? { ...s, price: s.price + 50000 } : s), 100, 4520),
+  makeGoods('g2', '轻薄笔记本电脑', 'c11', 699900, '2.8K屏 全金属机身',
+    [{ name: '颜色', values: ['深空灰', '银色'] }], undefined, 100, 1890),
+  makeGoods('g3', '真无线降噪耳机', 'c12', 69900, '主动降噪 30小时续航',
+    [{ name: '颜色', values: ['黑', '白'] }], undefined, 100, 3260),
+  makeGoods('g4', '便携蓝牙音箱', 'c12', 19900, 'IPX7防水 户外必备',
+    [{ name: '颜色', values: ['曜石黑', '湖蓝'] }], undefined, 100, 2130),
+  makeGoods('g5', '男士休闲夹克', 'c21', 39900, '春秋百搭 立领防风',
+    [{ name: '尺码', values: ['M', 'L', 'XL'] }], undefined, 100, 1560),
+  makeGoods('g6', '纯棉白T恤', 'c21', 8900, '新疆长绒棉 不起球',
+    [{ name: '颜色', values: ['白', '黑', '蓝'] }, { name: '尺码', values: ['M', 'L', 'XL'] }],
+    undefined, 100, 2840),
+  makeGoods('g7', '法式碎花连衣裙', 'c22', 25900, '收腰显瘦 温柔气质',
+    [{ name: '尺码', values: ['S', 'M', 'L'] }], undefined, 100, 1420),
+  makeGoods('g8', '坚果零食大礼包', 'c31', 12900, '每日坚果 混合装',
+    [{ name: '规格', values: ['30袋装'] }], undefined, 100, 3680),
+  makeGoods('g9', '进口蓝山咖啡豆', 'c31', 8900, '中度烘焙 醇香回甘',
+    [{ name: '规格', values: ['250g', '500g'] }], undefined, 100, 2380),
+  makeGoods('g10', '烟酰胺美白精华', 'c41', 32900, '提亮肤色 淡化痘印',
+    [{ name: '规格', values: ['30ml', '50ml'] }], undefined, 100, 2950),
+  makeGoods('g11', '氨基酸温和洁面', 'c41', 7900, '氨基酸配方 温和不紧绷',
+    [{ name: '规格', values: ['100g'] }], undefined, 100, 3420),
+  makeGoods('g12', '麦饭石不粘炒锅', 'c51', 19900, '少油不粘 电磁炉通用',
+    [{ name: '规格', values: ['28cm', '32cm'] }], undefined, 100, 1970),
+  makeGoods('g13', '北欧陶瓷餐具套装', 'c51', 16900, '12件套 简约ins风',
+    [{ name: '规格', values: ['12件套'] }], undefined, 100, 1240),
+  makeGoods('g14', '全棉四件套', 'c52', 39900, '60支长绒棉 亲肤透气',
+    [{ name: '规格', values: ['1.5m', '1.8m'] }], undefined, 100, 2680),
+  makeGoods('g15', '智能运动手环', 'c61', 24900, '心率血氧监测 50米防水',
+    [{ name: '颜色', values: ['黑', '粉'] }], undefined, 100, 3150),
+  makeGoods('g16', '加厚防滑瑜伽垫', 'c61', 9900, '10mm加厚 防滑回弹',
+    [{ name: '规格', values: ['10mm'] }], undefined, 100, 2080),
 ]
 
 export function getGoods(id: string): Goods | undefined { return goods.find(g => g.id === id) }

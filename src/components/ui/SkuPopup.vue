@@ -28,7 +28,7 @@ const close = () => emit('update:show', false)
         <view v-for="s in goods.skus" :key="s.id"
           class="spec" :class="{ on: s.id === skuId, disabled: outOfStock(s) }"
           @tap="select(s)">
-          {{ s.spec }}
+          {{ Object.values(s.attrs).join(' / ') }}
         </view>
       </view>
       <view class="row"><text>数量</text><Stepper v-model="quantity" :max="sku?.stock || 99" /></view>
