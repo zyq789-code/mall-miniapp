@@ -7,7 +7,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://47.107.188.239:3000', // 阿里云后端；本地开发可改回 localhost:3000
         changeOrigin: true,
       },
     },
