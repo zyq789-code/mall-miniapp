@@ -1,7 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
+import { fileURLToPath } from 'node:url'
 import { seedIfEmpty } from './seed.js'
 
-const db = new DatabaseSync(new URL('../mall.db', import.meta.url))
+// 数据库路径：可用环境变量 DB_PATH 覆盖（Docker 持久化用），默认放 server/mall.db
+const dbPath: string = process.env.DB_PATH ?? fileURLToPath(new URL('../mall.db', import.meta.url))
+const db = new DatabaseSync(dbPath)
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS categories (
