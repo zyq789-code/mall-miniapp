@@ -16,14 +16,24 @@ interface ProductRow {
   tags: string
   status: string
   cover: string
+  specs: string
+  skus: string
   created_at: number
 }
 
+/** 规格维度：如 { name: '颜色', values: ['黑', '白'] }（对齐小程序 models/goods.ts）。 */
+interface SpecGroupDto {
+  name: string
+  values: string[]
+}
+
+/** 单个 SKU：attrs 如 { 颜色: '黑', 内存: '128G' }（对齐小程序 models/goods.ts）。 */
 interface SkuDto {
   id: string
-  spec: string
+  attrs: Record<string, string>
   price: number
   stock: number
+  image?: string
 }
 
 interface ProductDto {
@@ -42,6 +52,7 @@ interface ProductDto {
   /** 小程序 Goods 模型所需字段（由基础字段派生，后端作为商品数据源）。 */
   images: string[]
   desc: string
+  specs: SpecGroupDto[]
   skus: SkuDto[]
 }
 
@@ -57,6 +68,8 @@ interface ProductInput {
   tags?: string[]
   cover?: string
   status?: string
+  specs?: SpecGroupDto[]
+  skus?: SkuDto[]
 }
 
 type ValidationResult = { ok: true; value: ProductInput } | { ok: false; message: string }
@@ -69,20 +82,63 @@ function collectCategoryIds(categoryId: string): string[] {
   return ids
 }
 
-function toDTO(row: ProductRow): ProductDto {
-  let tags: string[] = []
+/** 解析 JSON 数组列（specs/skus/tags），空或非法一律回退 []。 */
+function parseJsonArray<T>(raw: string | null | undefined): T[] {
+  if (!raw) return []
   try {
-    tags = JSON.parse(row.tags)
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
   } catch {
-    tags = []
+    return []
   }
-  const price = row.price
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isSpecGroup(value: unknown): value is SpecGroupDto {
+  if (!isRecord(value)) return false
+  const { name, values } = value
+  if (typeof name !== 'string' || !name.trim()) return false
+  if (!Array.isArray(values) || values.length === 0) return false
+  return values.every((v) => typeof v === 'string' && v.trim().length > 0)
+}
+
+function isSku(value: unknown): value is SkuDto {
+  if (!isRecord(value)) return false
+  const { attrs, price, stock } = value
+  if (!isRecord(attrs)) return false
+  if (Object.values(attrs).some((v) => typeof v !== 'string')) return false
+  if (typeof price !== 'number' || !Number.isInteger(price) || price <= 0) return false
+  if (typeof stock !== 'number' || !Number.isInteger(stock) || stock < 0) return false
+  return true
+}
+
+/** 补全 SKU id（缺省按商品前缀编号），保证全局唯一。 */
+function normalizeSkuIds(skus: SkuDto[], productId: string): SkuDto[] {
+  return skus.map((sku, i) => (sku.id && sku.id.trim() ? sku : { ...sku, id: `${productId}-s${i + 1}` }))
+}
+
+/** 计算展示价/库存：传了 skus 时 price = 最低 SKU 价、stock = SKU 库存之和。 */
+function derivePriceAndStock(price: number, stock: number, skus: SkuDto[]): { price: number; stock: number } {
+  if (skus.length === 0) return { price, stock }
+  return {
+    price: Math.min(...skus.map((s) => s.price)),
+    stock: skus.reduce((sum, s) => sum + s.stock, 0),
+  }
+}
+
+function toDTO(row: ProductRow): ProductDto {
+  const tags = parseJsonArray<string>(row.tags)
+  const specs = parseJsonArray<SpecGroupDto>(row.specs)
+  const skus = parseJsonArray<SkuDto>(row.skus)
   return {
     id: row.id,
     name: row.name,
     subtitle: row.subtitle,
     categoryId: row.category_id,
-    price,
+    price: row.price,
     originalPrice: row.original_price,
     stock: row.stock,
     sales: row.sales,
@@ -92,10 +148,8 @@ function toDTO(row: ProductRow): ProductDto {
     createdAt: row.created_at,
     images: row.cover ? [row.cover] : [],
     desc: `${row.name}，${row.subtitle}。甄选品质，7天无理由退换，正品保障，全国包邮。`,
-    skus: [
-      { id: `${row.id}-s1`, spec: '标准款', price, stock: row.stock },
-      { id: `${row.id}-s2`, spec: '尊享款', price: price + Math.round(price * 0.2), stock: row.stock },
-    ],
+    specs,
+    skus,
   }
 }
 
@@ -170,6 +224,20 @@ function validateProductInput(body: Record<string, unknown>, partial: boolean): 
     value.tags = body.tags as string[]
   }
 
+  if (body.specs !== undefined) {
+    if (!Array.isArray(body.specs) || !body.specs.every(isSpecGroup)) {
+      return { ok: false, message: 'specs must be an array of { name, values: string[] }' }
+    }
+    value.specs = body.specs as SpecGroupDto[]
+  }
+
+  if (body.skus !== undefined) {
+    if (!Array.isArray(body.skus) || !body.skus.every(isSku)) {
+      return { ok: false, message: 'skus must be an array of { attrs, price, stock }' }
+    }
+    value.skus = body.skus as SkuDto[]
+  }
+
   if (body.status !== undefined) {
     if (body.status !== 'on' && body.status !== 'off') return { ok: false, message: "status must be 'on' or 'off'" }
     value.status = body.status
@@ -230,15 +298,17 @@ router.post('/', requireAuth, (req, res) => {
     const { value } = result
     const now = Date.now()
     const id = `g${now}`
-    const price = value.price as number
+    const specs = value.specs ?? []
+    const skus = normalizeSkuIds(value.skus ?? [], id)
+    // 传了 skus 时展示价/库存由 SKU 推导（覆盖裸字段）。
+    const { price, stock } = derivePriceAndStock(value.price as number, value.stock ?? 0, skus)
     const originalPrice = value.originalPrice ?? Math.round(price * 1.3)
-    const stock = value.stock ?? 0
     const sales = value.sales ?? 0
     const tags = JSON.stringify(value.tags ?? [])
 
     db.prepare(`
-      INSERT INTO products (id, name, subtitle, category_id, price, original_price, stock, sales, tags, status, cover, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO products (id, name, subtitle, category_id, price, original_price, stock, sales, tags, status, cover, specs, skus, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       value.name as string,
@@ -251,6 +321,8 @@ router.post('/', requireAuth, (req, res) => {
       tags,
       value.status ?? 'on',
       value.cover ?? '',
+      JSON.stringify(specs),
+      JSON.stringify(skus),
       now,
     )
 
@@ -294,21 +366,28 @@ router.put('/:id', requireAuth, (req, res) => {
       return
     }
     const { value } = result
+    const id = req.params.id
+    const specs = value.specs
+    const skus = value.skus !== undefined ? normalizeSkuIds(value.skus, id) : undefined
+    // 传了 skus 时展示价/库存由 SKU 推导（覆盖裸字段）。
+    const { price, stock } = derivePriceAndStock(value.price ?? existing.price, value.stock ?? existing.stock, skus ?? [])
 
     db.prepare(`
       UPDATE products
-      SET name = ?, subtitle = ?, category_id = ?, price = ?, original_price = ?, stock = ?, tags = ?, cover = ?
+      SET name = ?, subtitle = ?, category_id = ?, price = ?, original_price = ?, stock = ?, tags = ?, cover = ?, specs = ?, skus = ?
       WHERE id = ?
     `).run(
       value.name ?? existing.name,
       value.subtitle ?? existing.subtitle,
       value.categoryId ?? existing.category_id,
-      value.price ?? existing.price,
+      price,
       value.originalPrice ?? existing.original_price,
-      value.stock ?? existing.stock,
+      stock,
       value.tags !== undefined ? JSON.stringify(value.tags) : existing.tags,
       value.cover ?? existing.cover,
-      req.params.id,
+      specs !== undefined ? JSON.stringify(specs) : existing.specs,
+      skus !== undefined ? JSON.stringify(skus) : existing.skus,
+      id,
     )
 
     const row = getProductById(req.params.id)

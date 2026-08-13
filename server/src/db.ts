@@ -25,6 +25,8 @@ db.exec(`
     tags TEXT,
     status TEXT DEFAULT 'on',
     cover TEXT,
+    specs TEXT,
+    skus TEXT,
     created_at INTEGER
   );
 
@@ -59,6 +61,13 @@ const orderCols = new Set(
 )
 if (!orderCols.has('ship_time')) db.exec('ALTER TABLE orders ADD COLUMN ship_time INTEGER')
 if (!orderCols.has('receive_time')) db.exec('ALTER TABLE orders ADD COLUMN receive_time INTEGER')
+
+// products.specs/skus: multi-spec SPU/SKU columns (JSON strings). Migrate existing DBs.
+const productCols = new Set(
+  (db.prepare('PRAGMA table_info(products)').all() as Array<{ name: string }>).map((col) => col.name),
+)
+if (!productCols.has('specs')) db.exec('ALTER TABLE products ADD COLUMN specs TEXT')
+if (!productCols.has('skus')) db.exec('ALTER TABLE products ADD COLUMN skus TEXT')
 
 seedIfEmpty(db)
 
