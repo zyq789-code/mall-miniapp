@@ -69,7 +69,7 @@ export const PROJECTS: Project[] = [
       '专业级电商商城，26 个页面（商品 / 购物车 / 优惠券 / 积分 / 订单 / 售后），uni-app + Node/Express + SQLite + React 管理后台，全栈公网部署。',
     tags: ['uni-app', 'Vue3', 'TypeScript', 'Node.js', 'Express', 'SQLite', 'React'],
     links: [
-      { label: '在线访问', href: 'http://8.163.34.25', external: true },
+      { label: '在线访问', href: 'http://8.163.34.25/mall/', external: true },
       { label: 'GitHub', href: 'https://github.com/zyq789-code/mall-miniapp', external: true },
     ],
     featured: true,
