@@ -69,6 +69,15 @@ const productCols = new Set(
 if (!productCols.has('specs')) db.exec('ALTER TABLE products ADD COLUMN specs TEXT')
 if (!productCols.has('skus')) db.exec('ALTER TABLE products ADD COLUMN skus TEXT')
 
+// users: profile/sign-in columns added after the table was first created.
+const userCols = new Set(
+  (db.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>).map((col) => col.name),
+)
+if (!userCols.has('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT')
+if (!userCols.has('points')) db.exec('ALTER TABLE users ADD COLUMN points INTEGER DEFAULT 0')
+if (!userCols.has('total_spent')) db.exec('ALTER TABLE users ADD COLUMN total_spent INTEGER DEFAULT 0')
+if (!userCols.has('last_sign_in')) db.exec('ALTER TABLE users ADD COLUMN last_sign_in TEXT')
+
 seedIfEmpty(db)
 
 export default db

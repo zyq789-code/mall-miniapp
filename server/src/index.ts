@@ -3,6 +3,7 @@ import cors from 'cors'
 import productsRouter from './routes/products.js'
 import ordersRouter from './routes/orders.js'
 import authRouter from './routes/auth.js'
+import userRouter from './routes/user.js'
 import uploadRouter from './routes/upload.js'
 
 const app = express()
@@ -15,7 +16,7 @@ app.get('/', (_req, res) => {
   res.json({
     service: 'mall-api',
     status: 'running',
-    endpoints: ['/api/health', '/api/products', '/api/orders', '/api/auth/login'],
+    endpoints: ['/api/health', '/api/products', '/api/orders', '/api/auth/login', '/api/user'],
     note: '这是一个纯 API 服务，前端（小程序 H5/管理后台）通过 /api 调用',
   })
 })
@@ -25,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/auth', authRouter)
+app.use('/api/user', userRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/upload', uploadRouter)

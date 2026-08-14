@@ -8,10 +8,20 @@ export interface AdminPayload {
   role: 'admin'
 }
 
+/** Verify a JWT and return its payload, or null when invalid/expired. Shared by admin/user auth. */
+export function verifyToken(token: string): jwt.JwtPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as jwt.JwtPayload
+  } catch {
+    return null
+  }
+}
+
 /**
  * Express middleware guarding admin write operations.
- * Expects `Authorization: Bearer <token>`; verifies the JWT and stashes
- * the payload on `res.locals.admin`. Missing/invalid token → 401.
+ * Expects `Authorization: Bearer <token>`; verifies the JWT carries
+ * `role: 'admin'` and stashes the payload on `res.locals.admin`.
+ * Missing/invalid/non-admin token → 401.
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const header = req.headers.authorization
@@ -26,11 +36,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return
   }
 
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload & AdminPayload
-    res.locals.admin = payload
-    next()
-  } catch {
+  const payload = verifyToken(token)
+  if (!payload || payload.role !== 'admin') {
     res.status(401).json({ success: false, message: '未授权' })
+    return
   }
+
+  res.locals.admin = payload as jwt.JwtPayload & AdminPayload
+  next()
 }
