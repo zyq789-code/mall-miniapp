@@ -4,6 +4,8 @@ import productsRouter from './routes/products.js'
 import ordersRouter from './routes/orders.js'
 import authRouter from './routes/auth.js'
 import userRouter from './routes/user.js'
+import cartRouter from './routes/cart.js'
+import addressRouter from './routes/address.js'
 import uploadRouter from './routes/upload.js'
 
 const app = express()
@@ -29,6 +31,8 @@ app.use('/api/auth', authRouter)
 app.use('/api/user', userRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
+app.use('/api/cart', cartRouter)
+app.use('/api/addresses', addressRouter)
 app.use('/api/upload', uploadRouter)
 
 app.listen(PORT, () => {

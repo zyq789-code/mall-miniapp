@@ -53,6 +53,27 @@ db.exec(`
     password TEXT,
     nickname TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS cart_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    goods_id TEXT NOT NULL,
+    sku_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    checked INTEGER NOT NULL DEFAULT 1,
+    added_at INTEGER NOT NULL,
+    UNIQUE(user_id, goods_id, sku_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS addresses (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    region TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    is_default INTEGER NOT NULL DEFAULT 0
+  );
 `)
 
 // Idempotent migration: add columns introduced after the table was first created.
@@ -61,6 +82,7 @@ const orderCols = new Set(
 )
 if (!orderCols.has('ship_time')) db.exec('ALTER TABLE orders ADD COLUMN ship_time INTEGER')
 if (!orderCols.has('receive_time')) db.exec('ALTER TABLE orders ADD COLUMN receive_time INTEGER')
+if (!orderCols.has('user_id')) db.exec('ALTER TABLE orders ADD COLUMN user_id TEXT')
 
 // products.specs/skus: multi-spec SPU/SKU columns (JSON strings). Migrate existing DBs.
 const productCols = new Set(

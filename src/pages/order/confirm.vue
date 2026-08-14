@@ -6,6 +6,7 @@ import type { Goods } from '../../models/goods'
 import type { OrderItem, Address } from '../../models/order'
 import type { UserCoupon } from '../../models/coupon'
 import { goodsRepo } from '../../api/repository'
+import { getAddresses } from '../../api/address.api'
 import { getCoupons, saveCoupons } from '../../api/coupon.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatPrice } from '../../utils/format'
@@ -47,12 +48,16 @@ const selectedCoupon = ref('')
 const usePoints = ref(true)
 const points = computed(() => member.value.points)
 const submitting = ref(false)
-const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.addresses, []).find(a => a.isDefault))
+const addressList = ref<Address[]>([])
+const address = computed<Address | undefined>(() => addressList.value.find(a => a.isDefault))
 
-onShow(() => {
-  cart.sync()
+onShow(async () => {
+  // 购物车从后端拉（未登录/token 失效则保持空，提交时再拦）
+  try { await cart.sync() } catch { cart.clear() }
   userStore.fetchProfile()
-  loadGoods()
+  await loadGoods()
+  // 收货地址从后端拉（按用户隔离）
+  try { addressList.value = await getAddresses() } catch { addressList.value = [] }
   userCoupons.value = getCoupons()
   // 一次性回传：券列表选择后写入 selectedCoupon
   const sel = storage.get<string>(KEYS.selectedCoupon, '')
@@ -74,6 +79,7 @@ const goCoupon = () => uni.navigateTo({ url: '/pages/coupon/mine?select=1' })
 
 async function submit() {
   if (submitting.value) return            // 防重复提交：狂点只产一单
+  if (!userStore.isLogin()) return uni.showToast({ title: '请先登录', icon: 'none' })
   if (!address.value) return uni.showToast({ title: '请先添加地址', icon: 'none' })
   if (!items.value.length) return uni.showToast({ title: '没有要结算的商品', icon: 'none' })
   submitting.value = true
@@ -93,7 +99,8 @@ async function submit() {
     // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）。
     // 扣积分尚无后端接口，本地乐观扣减；待 U-C 把积分完整搬到后端后移除。
     if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
-    cart.removeBatch(items.value)
+    // 清后端购物车结算项（失败不阻断去支付）
+    try { await cart.clearChecked() } catch { /* ignore */ }
     uni.redirectTo({
       url: `/pages/order/pay?id=${order.id}`,
       fail: () => { submitting.value = false },

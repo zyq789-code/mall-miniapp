@@ -1,9 +1,9 @@
 import type { Order } from '../models/order'
 import { request } from './request'
 
-/** 订单列表（后端为数据源，本地不再持久化订单）。 */
+/** 我的订单（GET /orders/mine，带用户 token，只看当前用户自己的订单）。 */
 export async function getOrders(): Promise<Order[]> {
-  const data = await request<{ list: Order[] }>('/orders')
+  const data = await request<{ list: Order[] }>('/orders/mine')
   return data?.list ?? []
 }
 

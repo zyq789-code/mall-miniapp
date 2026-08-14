@@ -42,7 +42,7 @@ describe('order api', () => {
       const url = opts.url
       if (opts.method === 'POST') opts.success?.({ statusCode: 201, data: { success: true, data: o } })
       else if (url.includes('/status')) opts.success?.({ statusCode: 200, data: { success: true, data: { ...o, status: 'pending_ship' } } })
-      else if (url.endsWith('/orders')) opts.success?.({ statusCode: 200, data: { success: true, data: { list: [o], total: 1 } } })
+      else if (url.endsWith('/orders/mine')) opts.success?.({ statusCode: 200, data: { success: true, data: { list: [o], total: 1 } } })
       else if (url.endsWith('/o1')) opts.success?.({ statusCode: 200, data: { success: true, data: o } })
       else opts.success?.({ statusCode: 404, data: { success: false, message: 'not found' } })
     })

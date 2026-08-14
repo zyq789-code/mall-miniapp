@@ -7,11 +7,20 @@ import { pay, cancel, ship, receive } from '../services/order.service'
 export const useOrderStore = defineStore('order', () => {
   const orders = ref<Order[]>([])
 
-  /** 从后端拉取全部订单作为本地快照。 */
-  const sync = async () => { orders.value = await getOrders() }
+  /** 拉取"我的订单"作为本地快照；未登录/token 失效时置空而不是抛错。 */
+  const sync = async () => {
+    try {
+      orders.value = await getOrders()
+    } catch {
+      orders.value = []
+    }
+  }
 
-  /** 创建订单：先写后端，成功后刷新列表。 */
-  const create = async (o: Order) => { await createOrder(o); await sync() }
+  /** 创建订单：先写后端，成功后尽力刷新列表（刷新失败不影响下单结果）。 */
+  const create = async (o: Order) => {
+    await createOrder(o)
+    try { await sync() } catch { /* ignore */ }
+  }
 
   /** 支付：客户端守卫算出新状态 → 后端流转 → 刷新。 */
   const doPay = async (o: Order) => {

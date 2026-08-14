@@ -5,6 +5,7 @@ import type { Goods, Sku, FootprintItem } from '../../models/goods'
 import type { Review } from '../../models/review'
 import { goodsRepo } from '../../api/repository'
 import { useCartStore } from '../../stores/cart'
+import { useUserStore } from '../../stores/user'
 import { storage, KEYS } from '../../utils/storage'
 import { formatPrice, formatTime } from '../../utils/format'
 import { flashSales } from '../../mock/flash'
@@ -20,6 +21,7 @@ const showSku = ref(false)
 const action = ref<'cart' | 'buy'>('cart')
 const fav = ref(false)
 const cartStore = useCartStore()
+const userStore = useUserStore()
 
 onLoad(async (q) => {
   id.value = q?.id ?? ''
@@ -44,13 +46,24 @@ function toggleFav(): void {
   uni.showToast({ title: fav.value ? '已收藏' : '已取消收藏', icon: 'none' })
 }
 
-function onConfirm(sku: Sku, quantity: number) {
-  cartStore.add({ goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() })
-  showSku.value = false
-  if (action.value === 'buy') {
-    uni.navigateTo({ url: '/pages/order/confirm' })
-  } else {
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
+async function onConfirm(sku: Sku, quantity: number) {
+  if (!userStore.isLogin()) {
+    showSku.value = false
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    uni.navigateTo({ url: '/pages/user/login' })
+    return
+  }
+  try {
+    await cartStore.add({ goodsId: goods.value!.id, skuId: sku.id, quantity, checked: true, addedAt: Date.now() })
+    showSku.value = false
+    if (action.value === 'buy') {
+      uni.navigateTo({ url: '/pages/order/confirm' })
+    } else {
+      uni.showToast({ title: '已加入购物车', icon: 'success' })
+    }
+  } catch (e) {
+    showSku.value = false
+    uni.showToast({ title: e instanceof Error ? e.message : '加入失败', icon: 'none' })
   }
 }
 function openSku(mode: 'cart' | 'buy'): void {

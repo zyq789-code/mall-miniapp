@@ -4,6 +4,7 @@ import type { Member } from '../models/member'
 import { storage, KEYS } from '../utils/storage'
 import { levelOf, levelName } from '../services/member.service'
 import { ApiError } from '../api/request'
+import { useCartStore } from './cart'
 import {
   login as apiLogin,
   register as apiRegister,
@@ -31,6 +32,8 @@ export const useUserStore = defineStore('user', () => {
     token.value = res.token
     storage.set(KEYS.userToken, res.token)
     member.value = res.user
+    // 切换账号后清空本地购物车快照，避免泄漏上一个用户的数据（购物车页 onShow 会重新拉取）
+    useCartStore().clear()
   }
 
   async function register(username: string, password: string, nickname?: string): Promise<void> {
@@ -38,6 +41,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = res.token
     storage.set(KEYS.userToken, res.token)
     member.value = res.user
+    useCartStore().clear()
   }
 
   /** 拉取后端资料（页面 onShow 时调用）；token 失效（401）则自动退出。 */
@@ -64,6 +68,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = ''
     member.value = { ...EMPTY }
     storage.remove(KEYS.userToken)
+    useCartStore().clear()
   }
 
   // ---- 本地乐观更新（下单返积分/扣积分无后端接口，U-C 时整体搬到后端）----

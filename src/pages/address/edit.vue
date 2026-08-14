@@ -2,17 +2,24 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Address } from '../../models/order'
-import { storage, KEYS } from '../../utils/storage'
+import { getAddresses, createAddress, updateAddress } from '../../api/address.api'
 
 interface SwitchChangeEvent { detail: { value: boolean } }
 
 const form = ref<Address>({ id: '', name: '', phone: '', region: '', detail: '', isDefault: false })
+const editingId = ref('')
+const saving = ref(false)
 
-onLoad((q) => {
+onLoad(async (q) => {
   const id = q?.id
-  if (id) {
-    const found = storage.get<Address[]>(KEYS.addresses, []).find(a => a.id === id)
-    if (found) form.value = { ...found }
+  editingId.value = typeof id === 'string' ? id : ''
+  if (editingId.value) {
+    try {
+      const found = (await getAddresses()).find(a => a.id === editingId.value)
+      if (found) form.value = { ...found }
+    } catch {
+      // 拉取失败则保持空白表单
+    }
   }
 })
 
@@ -21,31 +28,34 @@ const onDefault = (e: Event) => {
   form.value = { ...form.value, isDefault: checked }
 }
 
-function save() {
+async function save() {
   const f = form.value
   if (!f.name.trim()) return uni.showToast({ title: '请填写姓名', icon: 'none' })
   if (!/^\d{11}$/.test(f.phone.trim())) return uni.showToast({ title: '请填写11位手机号', icon: 'none' })
   if (!f.detail.trim()) return uni.showToast({ title: '请填写详细地址', icon: 'none' })
-  const list = storage.get<Address[]>(KEYS.addresses, [])
-  if (f.id) {
-    const original = list.find(a => a.id === f.id)
-    const keepDefault = original?.isDefault && !f.isDefault && !list.some(a => a.id !== f.id && a.isDefault)
-    const isDefault = keepDefault ? true : f.isDefault
-    const next = list.map(a => {
-      if (a.id !== f.id) return isDefault ? { ...a, isDefault: false } : a
-      return { ...f, name: f.name.trim(), phone: f.phone.trim(), region: f.region.trim(), detail: f.detail.trim(), isDefault }
-    })
-    storage.set(KEYS.addresses, next)
-  } else {
-    const isDefault = list.length === 0 || f.isDefault
-    const fresh: Address = {
-      id: `a${Date.now()}`, name: f.name.trim(), phone: f.phone.trim(),
-      region: f.region.trim(), detail: f.detail.trim(), isDefault,
+  if (saving.value) return
+  saving.value = true
+  try {
+    const name = f.name.trim()
+    const phone = f.phone.trim()
+    const region = f.region.trim()
+    const detail = f.detail.trim()
+    if (editingId.value) {
+      // 编辑时若取消唯一默认地址则强制保留默认，避免没有默认地址
+      const list = await getAddresses()
+      const original = list.find(a => a.id === editingId.value)
+      const keepDefault = original?.isDefault && !f.isDefault && !list.some(a => a.id !== editingId.value && a.isDefault)
+      const isDefault = keepDefault ? true : f.isDefault
+      await updateAddress(editingId.value, { name, phone, region, detail, isDefault })
+    } else {
+      await createAddress({ name, phone, region, detail, isDefault: f.isDefault })
     }
-    const base = isDefault ? list.map(a => ({ ...a, isDefault: false })) : list
-    storage.set(KEYS.addresses, [...base, fresh])
+    uni.navigateBack()
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
   }
-  uni.navigateBack()
 }
 </script>
 <template>
@@ -57,7 +67,7 @@ function save() {
       <view class="field area"><text class="label">详细地址</text><textarea v-model="form.detail" placeholder="街道、楼牌号等" auto-height /></view>
       <view class="field"><text class="label">设为默认</text><switch :checked="form.isDefault" color="#1379ff" @change="onDefault" /></view>
     </view>
-    <view class="btn" @tap="save">保存</view>
+    <view class="btn" @tap="save">{{ saving ? '保存中…' : '保存' }}</view>
   </view>
 </template>
 <style scoped lang="scss">

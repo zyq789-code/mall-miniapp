@@ -1,6 +1,8 @@
 import { Router } from 'express'
+import type { Request } from 'express'
 import db from '../db.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, verifyToken } from '../middleware/auth.js'
+import { requireUser, type UserPayload } from '../middleware/userAuth.js'
 
 const router = Router()
 
@@ -37,6 +39,7 @@ interface OrderRow {
   pay_time: number | null
   ship_time: number | null
   receive_time: number | null
+  user_id: string | null
 }
 
 interface OrderDto {
@@ -54,6 +57,7 @@ interface OrderDto {
   payTime: number | null
   shipTime: number | null
   receiveTime: number | null
+  userId: string | null
 }
 
 function toDTO(row: OrderRow): OrderDto {
@@ -85,11 +89,23 @@ function toDTO(row: OrderRow): OrderDto {
     payTime: row.pay_time,
     shipTime: row.ship_time,
     receiveTime: row.receive_time,
+    userId: row.user_id ?? null,
   }
 }
 
 function getOrderById(id: string): OrderRow | undefined {
   return db.prepare('SELECT * FROM orders WHERE id = ?').get(id) as OrderRow | undefined
+}
+
+/** 从 Authorization 头解析用户 userId；无 token / 非用户 token 时返回 null（下单允许未登录）。 */
+function optionalUserId(req: Request): string | null {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) return null
+  const token = header.slice('Bearer '.length).trim()
+  if (!token) return null
+  const payload = verifyToken(token)
+  if (!payload || payload.role !== 'user') return null
+  return (payload as { userId: string }).userId ?? null
 }
 
 router.get('/', (req, res) => {
@@ -106,6 +122,19 @@ router.get('/', (req, res) => {
       .prepare(`SELECT * FROM orders ${whereSql} ORDER BY create_time DESC, id DESC`)
       .all(...params) as unknown as OrderRow[]
 
+    res.json({ success: true, data: { list: rows.map(toDTO), total: rows.length } })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal error' })
+  }
+})
+
+/** GET /api/orders/mine → 当前登录用户自己的订单（小程序"我的订单"）。 */
+router.get('/mine', requireUser, (req, res) => {
+  try {
+    const userId = (res.locals.user as UserPayload).userId
+    const rows = db
+      .prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY create_time DESC, id DESC')
+      .all(userId) as unknown as OrderRow[]
     res.json({ success: true, data: { list: rows.map(toDTO), total: rows.length } })
   } catch (error) {
     res.status(500).json({ success: false, message: error instanceof Error ? error.message : 'Internal error' })
@@ -165,9 +194,12 @@ router.post('/', (req, res) => {
 
     const num = (v: unknown, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def)
 
+    // 兼容旧客户端：允许未登录下单，但若带了用户 token 则把订单挂到该用户。
+    const userId = optionalUserId(req)
+
     db.prepare(`
-      INSERT INTO orders (id, order_no, status, total_amount, freight, pay_amount, address, items, coupon_deduction, points_deduction, create_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, order_no, status, total_amount, freight, pay_amount, address, items, coupon_deduction, points_deduction, create_time, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       body.orderNo.trim(),
@@ -180,6 +212,7 @@ router.post('/', (req, res) => {
       num(body.couponDeduction, 0),
       num(body.pointsDeduction, 0),
       num(body.createTime, Date.now()),
+      userId,
     )
 
     res.status(201).json({ success: true, data: toDTO(getOrderById(id) as OrderRow) })
