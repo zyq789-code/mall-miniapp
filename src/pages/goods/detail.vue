@@ -5,9 +5,9 @@ import type { Goods, Sku } from '../../models/goods'
 import type { Review } from '../../models/review'
 import { goodsRepo } from '../../api/repository'
 import { getFavorites, addFavorite, removeFavorite, recordFootprint as apiRecordFootprint } from '../../api/userAssets.api'
+import { getReviewsByGoods } from '../../api/userExtras.api'
 import { useCartStore } from '../../stores/cart'
 import { useUserStore } from '../../stores/user'
-import { storage, KEYS } from '../../utils/storage'
 import { formatPrice, formatTime } from '../../utils/format'
 import { flashSales } from '../../mock/flash'
 import { isFlashActive } from '../../services/flash.service'
@@ -28,6 +28,7 @@ onLoad(async (q) => {
   id.value = q?.id ?? ''
   goods.value = await goodsRepo.get(id.value)
   loading.value = false
+  await loadReviews()
   if (!goods.value) return
   if (userStore.isLogin()) {
     recordFootprint(id.value)
@@ -95,10 +96,15 @@ function openSku(mode: 'cart' | 'buy'): void {
 }
 const goReviews = () => uni.navigateTo({ url: `/pages/review/list?goodsId=${id.value}` })
 
-// —— 商品评价（只读）——
-const reviews = computed<Review[]>(() => storage.get<Review[]>(KEYS.reviews, [])
-  .filter(r => r.goodsId === id.value)
-  .sort((a, b) => b.time - a.time))
+// —— 商品评价（公开，按 goodsId 从后端拉取）——
+const reviews = ref<Review[]>([])
+async function loadReviews() {
+  try {
+    reviews.value = await getReviewsByGoods(id.value)
+  } catch {
+    reviews.value = []
+  }
+}
 const avgStars = computed(() => {
   if (!reviews.value.length) return 0
   return Math.round(reviews.value.reduce((sum, r) => sum + r.stars, 0) / reviews.value.length)

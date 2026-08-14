@@ -3,10 +3,8 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import type { AfterSale } from '../../models/aftersale'
 import { getOrders } from '../../api/order.api'
-import { storage, KEYS } from '../../utils/storage'
+import { getAfterSales } from '../../api/userExtras.api'
 import { formatTime } from '../../utils/format'
-import { approve, refund, reject, reappeal } from '../../services/aftersale.service'
-import { tryRun } from '../../utils/toast'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -19,31 +17,23 @@ const TYPE_TEXT: Record<string, string> = {
 const list = ref<AfterSale[]>([])
 const orderNoMap = ref<Record<string, string>>({})
 const load = async () => {
-  const all = storage.get<AfterSale[]>(KEYS.aftersales, [])
-  list.value = [...all].sort((a, b) => b.applyTime - a.applyTime)
-  // 订单已迁到后端，订单号从后端拉取后建映射
+  // 当前用户自己的售后记录（需登录；未登录/token 失效则置空）
+  try {
+    list.value = await getAfterSales()
+  } catch {
+    list.value = []
+  }
+  // 订单号从后端"我的订单"拉取后建映射（失败不阻断列表展示）
   const map: Record<string, string> = {}
-  const allOrders = await getOrders()
-  allOrders.forEach(o => { map[o.id] = o.orderNo })
+  try {
+    const allOrders = await getOrders()
+    allOrders.forEach(o => { map[o.id] = o.orderNo })
+  } catch {
+    /* ignore */
+  }
   orderNoMap.value = map
 }
 onShow(load)
-
-function update(id: string, updater: (a: AfterSale) => AfterSale) {
-  const all = storage.get<AfterSale[]>(KEYS.aftersales, [])
-  storage.set(KEYS.aftersales, all.map(x => (x.id === id ? updater(x) : x)))
-  load()
-}
-function run(a: AfterSale, updater: (x: AfterSale) => AfterSale) {
-  tryRun(() => {
-    update(a.id, updater)
-    uni.showToast({ title: '操作成功', icon: 'none' })
-  })
-}
-const onApprove = (a: AfterSale) => run(a, approve)
-const onRefund = (a: AfterSale) => run(a, refund)
-const onReject = (a: AfterSale) => run(a, reject)
-const onReappeal = (a: AfterSale) => run(a, x => ({ ...reappeal(x), applyTime: Date.now() }))
 </script>
 <template>
   <view class="page">
@@ -57,14 +47,6 @@ const onReappeal = (a: AfterSale) => run(a, x => ({ ...reappeal(x), applyTime: D
         <view class="row"><text>类型</text><text>{{ TYPE_TEXT[a.type] }}</text></view>
         <view class="row"><text>申请时间</text><text>{{ formatTime(a.applyTime) }}</text></view>
         <view class="reason"><text class="label">原因：</text><text>{{ a.reason }}</text></view>
-      </view>
-      <view class="foot">
-        <template v-if="a.status === 'pending'">
-          <view class="btn ghost" @tap="onReject(a)">拒绝</view>
-          <view class="btn" @tap="onApprove(a)">同意</view>
-        </template>
-        <view v-else-if="a.status === 'approved'" class="btn" @tap="onRefund(a)">退款</view>
-        <view v-else-if="a.status === 'rejected'" class="btn" @tap="onReappeal(a)">再申诉</view>
       </view>
     </view>
   </view>
@@ -82,7 +64,4 @@ const onReappeal = (a: AfterSale) => run(a, x => ({ ...reappeal(x), applyTime: D
 .row { display: flex; justify-content: space-between; color: $text2; font-size: 26rpx; padding: 8rpx 0; }
 .reason { display: flex; margin-top: 8rpx; font-size: 26rpx; color: $text; }
 .reason .label { color: $text2; flex-shrink: 0; }
-.foot { display: flex; justify-content: flex-end; gap: 16rpx; border-top: 1rpx solid $line; padding-top: 20rpx; }
-.btn { background: $brand; color: #fff; padding: 14rpx 36rpx; border-radius: $radius; font-size: 26rpx; }
-.btn.ghost { background: $card; color: $text2; border: 1rpx solid $line; }
 </style>

@@ -31,11 +31,16 @@ async function doPay() {
   uni.showLoading({ title: '支付中' })
   try {
     const next = await orderStore.doPay(o)
-    // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）。
-    // 下单返积分/累计消费尚无后端接口，本地乐观更新；待 U-C 把积分完整搬到后端后移除。
+    // 返积分（按会员等级倍数）+ 累计消费：后端接口完成并同步最新 profile。
+    // 失败不阻断支付成功跳转（订单已支付）。
     if (userStore.isLogin()) {
-      userStore.addPoints(earnBySpend(next.payAmount, pointsRate(userStore.level())))
-      userStore.addSpend(next.payAmount)
+      const earn = earnBySpend(next.payAmount, pointsRate(userStore.level()))
+      try {
+        await userStore.adjustPoints(earn)
+        await userStore.addSpend(next.payAmount)
+      } catch (e) {
+        uni.showToast({ title: e instanceof Error ? e.message : '积分更新失败', icon: 'none' })
+      }
     }
     uni.hideLoading()
     uni.redirectTo({ url: `/pages/order/detail?id=${next.id}`, fail: () => { paying.value = false } })

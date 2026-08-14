@@ -98,8 +98,14 @@ async function submit() {
       try { await markCouponUsed(usedCoupon.id) } catch { /* 券标记失败不阻断下单 */ }
     }
     // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）。
-    // 扣积分尚无后端接口，本地乐观扣减；待 U-C 把积分完整搬到后端后移除。
-    if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
+    // 后端接口扣减并同步最新 profile；失败提示但不阻断去支付（订单已创建）。
+    if (pointsDeduction.value > 0 && userStore.isLogin()) {
+      try {
+        await userStore.adjustPoints(-pointsDeduction.value)
+      } catch (e) {
+        uni.showToast({ title: e instanceof Error ? e.message : '积分扣除失败', icon: 'none' })
+      }
+    }
     // 清后端购物车结算项（失败不阻断去支付）
     try { await cart.clearChecked() } catch { /* ignore */ }
     uni.redirectTo({

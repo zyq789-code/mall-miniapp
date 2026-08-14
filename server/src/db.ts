@@ -102,6 +102,27 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'unused',  -- unused | used | expired
     received_at INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS reviews (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    goods_id TEXT NOT NULL,
+    stars INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    anonymous INTEGER NOT NULL DEFAULT 0,
+    time INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS aftersales (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    type TEXT NOT NULL,          -- 'refund' | 'return'
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending | approved | refunded | rejected
+    reason TEXT NOT NULL,
+    apply_time INTEGER NOT NULL
+  );
 `)
 
 // Idempotent migration: add columns introduced after the table was first created.

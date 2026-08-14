@@ -2,10 +2,9 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
-import type { Review } from '../../models/review'
 import { getOrder } from '../../api/order.api'
 import { goodsRepo } from '../../api/repository'
-import { storage, KEYS } from '../../utils/storage'
+import { createReview, getReviewsByGoods } from '../../api/userExtras.api'
 import { validateReview } from '../../services/review.service'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
@@ -18,6 +17,7 @@ const stars = ref(0)
 const content = ref('')
 const anonymous = ref(false)
 const duplicated = ref(false)
+const submitting = ref(false)
 
 const goodsName = ref('')
 
@@ -28,26 +28,41 @@ onLoad(async (q) => {
   if (!goodsId.value) goodsId.value = order.value?.items[0]?.goodsId ?? ''
   const g = await goodsRepo.get(goodsId.value)
   goodsName.value = g?.name ?? ''
-  duplicated.value = storage.get<Review[]>(KEYS.reviews, []).some(r => r.orderId === orderId.value && r.goodsId === goodsId.value)
+  // 同一 order+goods 只能评一次：读公开评价列表预判（服务端仍会兜底 400）。
+  try {
+    const reviews = await getReviewsByGoods(goodsId.value)
+    duplicated.value = reviews.some(r => r.orderId === orderId.value && r.goodsId === goodsId.value)
+  } catch {
+    duplicated.value = false
+  }
 })
 
 const onAnonymous = (e: Event) => {
   anonymous.value = (e as unknown as SwitchChangeEvent).detail.value
 }
 
-function submit() {
+async function submit() {
+  if (submitting.value) return
   if (duplicated.value) return uni.showToast({ title: '该商品已评价，不能重复评价', icon: 'none' })
   if (!stars.value) return uni.showToast({ title: '请选择星级', icon: 'none' })
   if (!content.value.trim()) return uni.showToast({ title: '请填写评价内容', icon: 'none' })
   const err = validateReview({ stars: stars.value, content: content.value })
   if (err) return uni.showToast({ title: err, icon: 'none' })
-  const review: Review = {
-    id: `r${Date.now()}`, orderId: orderId.value, goodsId: goodsId.value,
-    stars: stars.value, content: content.value.trim(), anonymous: anonymous.value, time: Date.now(),
+  submitting.value = true
+  try {
+    await createReview({
+      orderId: orderId.value,
+      goodsId: goodsId.value,
+      stars: stars.value,
+      content: content.value.trim(),
+      anonymous: anonymous.value,
+    })
+    uni.showToast({ title: '评价成功', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 600)
+  } catch (e) {
+    submitting.value = false
+    uni.showToast({ title: e instanceof Error ? e.message : '评价失败', icon: 'none' })
   }
-  storage.set(KEYS.reviews, [...storage.get<Review[]>(KEYS.reviews, []), review])
-  uni.showToast({ title: '评价成功', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 600)
 }
 </script>
 <template>
@@ -72,7 +87,7 @@ function submit() {
         </view>
       </view>
       <view v-if="duplicated" class="dup-tip">该商品已评价，不能重复评价</view>
-      <view class="btn" :class="{ disabled: duplicated }" @tap="submit">提交评价</view>
+      <view class="btn" :class="{ disabled: duplicated || submitting }" @tap="submit">{{ submitting ? '提交中…' : '提交评价' }}</view>
     </template>
   </view>
 </template>

@@ -2,12 +2,11 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Order } from '../../models/order'
-import type { AfterSale, AfterSaleType } from '../../models/aftersale'
+import type { AfterSaleType } from '../../models/aftersale'
 import { getOrder } from '../../api/order.api'
-import { storage, KEYS } from '../../utils/storage'
+import { createAfterSale } from '../../api/userExtras.api'
 import { formatPrice } from '../../utils/format'
 import { canApplyAfterSale } from '../../services/order.service'
-import { applyAfterSale } from '../../services/aftersale.service'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const TYPES: { value: AfterSaleType; label: string }[] = [
@@ -19,6 +18,7 @@ const order = ref<Order | null>(null)
 const type = ref<AfterSaleType>('refund')
 const reason = ref('')
 const eligible = ref(true)
+const submitting = ref(false)
 
 const ineligibleReason = computed(() => {
   const o = order.value
@@ -34,14 +34,19 @@ onLoad(async (q) => {
   if (order.value) eligible.value = canApplyAfterSale(order.value, Date.now())
 })
 
-function submit() {
+async function submit() {
   const o = order.value
-  if (!o || !eligible.value) return
+  if (!o || !eligible.value || submitting.value) return
   if (!reason.value.trim()) return uni.showToast({ title: '请填写退款原因', icon: 'none' })
-  const item: AfterSale = applyAfterSale(`as${Date.now()}`, o.id, type.value, reason.value.trim(), Date.now())
-  storage.set(KEYS.aftersales, [...storage.get<AfterSale[]>(KEYS.aftersales, []), item])
-  uni.showToast({ title: '已提交，等待商家处理', icon: 'none' })
-  setTimeout(() => uni.navigateBack(), 600)
+  submitting.value = true
+  try {
+    await createAfterSale({ orderId: o.id, type: type.value, reason: reason.value.trim() })
+    uni.showToast({ title: '已提交，等待商家处理', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 600)
+  } catch (e) {
+    submitting.value = false
+    uni.showToast({ title: e instanceof Error ? e.message : '提交失败', icon: 'none' })
+  }
 }
 </script>
 <template>
@@ -62,7 +67,7 @@ function submit() {
           <textarea v-model="reason" placeholder="请描述您遇到的问题" maxlength="200" />
         </view>
       </view>
-      <view class="btn" :class="{ disabled: !canSubmit }" @tap="submit">提交申请</view>
+      <view class="btn" :class="{ disabled: !canSubmit || submitting }" @tap="submit">{{ submitting ? '提交中…' : '提交申请' }}</view>
     </template>
   </view>
 </template>

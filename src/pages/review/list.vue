@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import type { Review } from '../../models/review'
 import { goodsRepo } from '../../api/repository'
-import { storage, KEYS } from '../../utils/storage'
+import { getReviewsByGoods } from '../../api/userExtras.api'
 import { formatTime } from '../../utils/format'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
@@ -15,9 +15,11 @@ onLoad(async (q) => {
   goodsId.value = typeof q?.goodsId === 'string' ? q?.goodsId : ''
   const g = await goodsRepo.get(goodsId.value)
   goodsName.value = g?.name ?? ''
-  list.value = storage.get<Review[]>(KEYS.reviews, [])
-    .filter(r => r.goodsId === goodsId.value)
-    .sort((a, b) => b.time - a.time)
+  try {
+    list.value = await getReviewsByGoods(goodsId.value)
+  } catch {
+    list.value = []
+  }
 })
 
 const starText = (s: number) => '★'.repeat(s) + '☆'.repeat(5 - s)

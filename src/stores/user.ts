@@ -11,15 +11,17 @@ import {
   getProfile,
   updateProfile as apiUpdateProfile,
   signin as apiSignin,
+  toMember,
 } from '../api/user.api'
+import { adjustPoints as apiAdjustPoints, addSpend as apiAddSpend } from '../api/userExtras.api'
 
 const EMPTY: Member = { id: '', username: '', nickname: '', avatar: '', points: 0, totalSpent: 0, lastSignIn: null }
 
 /**
  * 用户账号体系（后端驱动）。
  * member 资料/积分/签到均来自 /api/user/*，token 存 localStorage（KEYS.userToken）。
- * 下单返积分/扣积分尚未有后端接口，本地保留乐观更新（见 addPoints/deductPoints/addSpend），
- * 待 U-C 把积分完整搬到后端后移除。
+ * 下单扣积分/支付返积分+累计消费由后端接口（/api/user/points、/api/user/spend）完成，
+ * 成功后以后端返回的最新 profile 同步本地。
  */
 export const useUserStore = defineStore('user', () => {
   const member = ref<Member>({ ...EMPTY })
@@ -71,15 +73,22 @@ export const useUserStore = defineStore('user', () => {
     useCartStore().clear()
   }
 
-  // ---- 本地乐观更新（下单返积分/扣积分无后端接口，U-C 时整体搬到后端）----
-  const addPoints = (n: number) => { member.value = { ...member.value, points: member.value.points + n } }
-  const deductPoints = (n: number) => { member.value = { ...member.value, points: Math.max(0, member.value.points - n) } }
-  const addSpend = (amount: number) => { member.value = { ...member.value, totalSpent: member.value.totalSpent + amount } }
+  // ---- 积分联动（后端驱动，返回最新 profile 并同步本地）----
+
+  /** 积分 ±delta（后端约束结果 ≥0）。 */
+  async function adjustPoints(delta: number): Promise<void> {
+    member.value = toMember(await apiAdjustPoints(delta))
+  }
+
+  /** 累计消费 +amount（分）。 */
+  async function addSpend(amount: number): Promise<void> {
+    member.value = toMember(await apiAddSpend(amount))
+  }
 
   const level = () => levelOf(member.value.totalSpent)
 
   return {
     member, token, isLogin, login, register, logout, fetchProfile, updateProfile, signin,
-    addPoints, deductPoints, addSpend, level, levelName,
+    adjustPoints, addSpend, level, levelName,
   }
 })
