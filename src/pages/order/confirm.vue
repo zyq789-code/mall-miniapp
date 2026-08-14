@@ -7,7 +7,7 @@ import type { OrderItem, Address } from '../../models/order'
 import type { UserCoupon } from '../../models/coupon'
 import { goodsRepo } from '../../api/repository'
 import { getAddresses } from '../../api/address.api'
-import { getCoupons, saveCoupons } from '../../api/coupon.api'
+import { getCoupons, markCouponUsed } from '../../api/userAssets.api'
 import { storage, KEYS } from '../../utils/storage'
 import { formatPrice } from '../../utils/format'
 import { useCartStore } from '../../stores/cart'
@@ -58,7 +58,8 @@ onShow(async () => {
   await loadGoods()
   // 收货地址从后端拉（按用户隔离）
   try { addressList.value = await getAddresses() } catch { addressList.value = [] }
-  userCoupons.value = getCoupons()
+  // 我的券从后端拉（未登录/token 失效则置空，提交时再拦）
+  try { userCoupons.value = await getCoupons() } catch { userCoupons.value = [] }
   // 一次性回传：券列表选择后写入 selectedCoupon
   const sel = storage.get<string>(KEYS.selectedCoupon, '')
   if (sel) { selectedCoupon.value = sel; storage.remove(KEYS.selectedCoupon) }
@@ -91,10 +92,10 @@ async function submit() {
   }
   try {
     await orderStore.create(order)
-    // 下单成功后才消费本地资源：用券标记已用
+    // 下单成功后才消费优惠券：后端标记已用（失败不阻断去支付，券保持未用由用户下次再选）
     const usedCoupon = coupon.value
     if (usedCoupon) {
-      saveCoupons(getCoupons().map(c => (c.id === usedCoupon.id ? { ...c, status: 'used' as const } : c)))
+      try { await markCouponUsed(usedCoupon.id) } catch { /* 券标记失败不阻断下单 */ }
     }
     // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）。
     // 扣积分尚无后端接口，本地乐观扣减；待 U-C 把积分完整搬到后端后移除。

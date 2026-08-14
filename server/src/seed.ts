@@ -1,5 +1,23 @@
 import type { DatabaseSync } from 'node:sqlite'
 
+/** 领券中心种子券：claim 时按 id 从这份种子拷贝到 user_coupons（id 与小程序 mock/coupons.ts 对齐）。 */
+export interface CouponSeed {
+  id: string
+  name: string
+  type: 'reduce' | 'discount'
+  threshold: number // 分
+  discount: number // reduce: 减分; discount: 折扣(90=9折)
+  scope: 'all' | string[]
+  startAt: number
+  endAt: number
+}
+
+export const couponSeeds: CouponSeed[] = [
+  { id: 'cp1', name: '满100减20', type: 'reduce', threshold: 10000, discount: 2000, scope: 'all', startAt: 0, endAt: 4100000000000 },
+  { id: 'cp2', name: '满300减60', type: 'reduce', threshold: 30000, discount: 6000, scope: 'all', startAt: 0, endAt: 4100000000000 },
+  { id: 'cp3', name: '全场9折', type: 'discount', threshold: 0, discount: 90, scope: 'all', startAt: 0, endAt: 4100000000000 },
+]
+
 /** Two-level category tree (parent_id NULL for first level). */
 const CATEGORIES: Array<{ id: string; name: string; parentId: string | null }> = [
   { id: 'c1', name: '手机数码', parentId: null },

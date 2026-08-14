@@ -74,6 +74,34 @@ db.exec(`
     detail TEXT NOT NULL,
     is_default INTEGER NOT NULL DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS favorites (
+    user_id TEXT NOT NULL,
+    goods_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (user_id, goods_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS footprints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    goods_id TEXT NOT NULL,
+    time INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS user_coupons (
+    id TEXT PRIMARY KEY,
+    coupon_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,          -- 'reduce' | 'discount'
+    threshold INTEGER NOT NULL,  -- 分
+    discount INTEGER NOT NULL,   -- reduce: 减分; discount: 折扣(85=8.5折)
+    scope TEXT NOT NULL,         -- 'all' 或 JSON 数组
+    start_at INTEGER NOT NULL, end_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'unused',  -- unused | used | expired
+    received_at INTEGER NOT NULL
+  );
 `)
 
 // Idempotent migration: add columns introduced after the table was first created.

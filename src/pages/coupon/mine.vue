@@ -2,15 +2,21 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import type { UserCoupon } from '../../models/coupon'
-import { getCoupons } from '../../api/coupon.api'
+import { getCoupons } from '../../api/userAssets.api'
+import { useUserStore } from '../../stores/user'
 import { storage, KEYS } from '../../utils/storage'
 import { formatTime } from '../../utils/format'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const list = ref<UserCoupon[]>([])
 const selectMode = ref(false)
+const userStore = useUserStore()
+const loggedIn = computed(() => userStore.isLogin())
 onLoad((q) => { selectMode.value = q?.select === '1' })
-onShow(() => { list.value = getCoupons() })
+onShow(async () => {
+  if (!userStore.isLogin()) { list.value = []; return }
+  try { list.value = await getCoupons() } catch { list.value = [] }
+})
 
 interface StatusInfo { key: 'unused' | 'used' | 'expired'; label: string; usable: boolean }
 function statusOf(c: UserCoupon): StatusInfo {
@@ -29,19 +35,26 @@ function onTap(c: UserCoupon) {
   storage.set(KEYS.selectedCoupon, c.id)
   uni.navigateBack()
 }
+const goLogin = () => uni.navigateTo({ url: '/pages/user/login' })
 </script>
 <template>
   <view class="page">
-    <EmptyView v-if="!view.length" text="还没有优惠券，去领券中心看看吧" />
-    <view v-for="c in view" :key="c.id" class="card cp" :class="{ dim: !c.st.usable, pickable: selectMode }" @tap="onTap(c)">
-      <view class="row">
-        <text class="name">{{ c.name }}</text>
-        <text class="st" :class="c.st.key">{{ c.st.label }}</text>
+    <template v-if="!loggedIn">
+      <EmptyView text="请先登录" />
+      <view class="login-btn" @tap="goLogin">去登录</view>
+    </template>
+    <template v-else>
+      <EmptyView v-if="!view.length" text="还没有优惠券，去领券中心看看吧" />
+      <view v-for="c in view" :key="c.id" class="card cp" :class="{ dim: !c.st.usable, pickable: selectMode }" @tap="onTap(c)">
+        <view class="row">
+          <text class="name">{{ c.name }}</text>
+          <text class="st" :class="c.st.key">{{ c.st.label }}</text>
+        </view>
+        <view class="sub">{{ desc(c) }}</view>
+        <view class="time">有效期至 {{ formatTime(c.endAt) }}</view>
       </view>
-      <view class="sub">{{ desc(c) }}</view>
-      <view class="time">有效期至 {{ formatTime(c.endAt) }}</view>
-    </view>
-    <view v-if="selectMode" class="tip">点击选择一张优惠券</view>
+      <view v-if="selectMode" class="tip">点击选择一张优惠券</view>
+    </template>
   </view>
 </template>
 <style scoped lang="scss">
@@ -57,4 +70,5 @@ function onTap(c: UserCoupon) {
 .cp.dim { opacity: .6; }
 .cp.pickable { border: 1rpx solid $brand; }
 .tip { text-align: center; color: $text3; font-size: 24rpx; padding: 24rpx 0; }
+.login-btn { width: 320rpx; margin: 0 auto; background: $brand; color: #fff; text-align: center; padding: 24rpx 0; border-radius: $radius; font-size: 30rpx; }
 </style>

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import type { Goods, Sku, FootprintItem } from '../../models/goods'
+import type { Goods, Sku } from '../../models/goods'
 import type { Review } from '../../models/review'
 import { goodsRepo } from '../../api/repository'
+import { getFavorites, addFavorite, removeFavorite, recordFootprint as apiRecordFootprint } from '../../api/userAssets.api'
 import { useCartStore } from '../../stores/cart'
 import { useUserStore } from '../../stores/user'
 import { storage, KEYS } from '../../utils/storage'
@@ -28,22 +29,44 @@ onLoad(async (q) => {
   goods.value = await goodsRepo.get(id.value)
   loading.value = false
   if (!goods.value) return
-  recordFootprint(id.value)
-  fav.value = storage.get<string[]>(KEYS.favorites, []).includes(id.value)
+  if (userStore.isLogin()) {
+    recordFootprint(id.value)
+    try {
+      fav.value = (await getFavorites()).includes(id.value)
+    } catch {
+      // 拉收藏失败时默认未收藏（不阻塞商品浏览）
+    }
+  }
 })
 
+/** 浏览足迹写到后端（需登录；未登录跳过，不影响浏览）。 */
 function recordFootprint(goodsId: string): void {
-  const list = storage.get<FootprintItem[]>(KEYS.footprints, [])
-  const next = [{ goodsId, time: Date.now() }, ...list.filter(x => x.goodsId !== goodsId)].slice(0, 50)
-  storage.set(KEYS.footprints, next)
+  if (!userStore.isLogin()) return
+  apiRecordFootprint(goodsId).catch(() => {
+    // 足迹记录失败不阻塞浏览
+  })
 }
 
-function toggleFav(): void {
-  const list = storage.get<string[]>(KEYS.favorites, [])
-  const next = fav.value ? list.filter(x => x !== id.value) : [...list, id.value]
-  storage.set(KEYS.favorites, next)
-  fav.value = !fav.value
-  uni.showToast({ title: fav.value ? '已收藏' : '已取消收藏', icon: 'none' })
+/** 收藏/取消收藏（登录才可收藏；未登录跳登录）。 */
+async function toggleFav(): Promise<void> {
+  if (!userStore.isLogin()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    uni.navigateTo({ url: '/pages/user/login' })
+    return
+  }
+  try {
+    if (fav.value) {
+      await removeFavorite(id.value)
+      fav.value = false
+      uni.showToast({ title: '已取消收藏', icon: 'none' })
+    } else {
+      await addFavorite(id.value)
+      fav.value = true
+      uni.showToast({ title: '已收藏', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '操作失败', icon: 'none' })
+  }
 }
 
 async function onConfirm(sku: Sku, quantity: number) {

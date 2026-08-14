@@ -1,25 +1,42 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import type { Coupon, UserCoupon } from '../../models/coupon'
 import { couponSeeds } from '../../mock/coupons'
-import { getCoupons, saveCoupons } from '../../api/coupon.api'
+import { getCoupons, claimCoupon } from '../../api/userAssets.api'
+import { useUserStore } from '../../stores/user'
 import { formatTime } from '../../utils/format'
 
 const mine = ref<UserCoupon[]>([])
-onShow(() => { mine.value = getCoupons() })
+const userStore = useUserStore()
+const loggedIn = computed(() => userStore.isLogin())
 
-const claimed = (id: string) => mine.value.some(c => c.id === id)
+onShow(async () => {
+  if (!userStore.isLogin()) { mine.value = []; return }
+  try { mine.value = await getCoupons() } catch { mine.value = [] }
+})
+
+/** 已领取判断按后端已领券的 couponId（种子 id）匹配。 */
+const claimed = (id: string) => mine.value.some(c => c.couponId === id)
 function desc(c: Coupon): string {
   return c.type === 'reduce' ? `满${c.threshold / 100}减${c.discount / 100}` : `全场${c.discount / 10}折`
 }
 const scopeText = (c: Coupon) => (c.scope === 'all' ? '全场通用' : '部分分类可用')
 
-function claim(c: Coupon) {
+async function claim(c: Coupon): Promise<void> {
   if (claimed(c.id)) return
-  saveCoupons([...mine.value, { ...c, userId: 'u1', receivedAt: Date.now() }])
-  uni.showToast({ title: '领取成功', icon: 'none' })
-  mine.value = getCoupons()
+  if (!userStore.isLogin()) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    uni.navigateTo({ url: '/pages/user/login' })
+    return
+  }
+  try {
+    await claimCoupon(c.id)
+    uni.showToast({ title: '领取成功', icon: 'none' })
+    mine.value = await getCoupons()
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '领取失败', icon: 'none' })
+  }
 }
 </script>
 <template>

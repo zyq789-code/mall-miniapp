@@ -7,4 +7,4 @@ export interface Coupon {
   scope: 'all' | string[]    // 全场 或 分类id列表
   startAt: number; endAt: number; status: CouponStatus
 }
-export interface UserCoupon extends Coupon { userId: string; receivedAt: number }
+export interface UserCoupon extends Coupon { userId: string; receivedAt: number; couponId: string }

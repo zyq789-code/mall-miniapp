@@ -1,33 +1,47 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import type { Goods } from '../../models/goods'
 import { goodsRepo } from '../../api/repository'
-import { storage, KEYS } from '../../utils/storage'
+import { getFavorites, removeFavorite } from '../../api/userAssets.api'
+import { useUserStore } from '../../stores/user'
 import { formatPrice } from '../../utils/format'
 import EmptyView from '../../components/ui/EmptyView.vue'
 
 const list = ref<Goods[]>([])
+const userStore = useUserStore()
+const loggedIn = computed(() => userStore.isLogin())
 
 async function load(): Promise<void> {
-  const ids = storage.get<string[]>(KEYS.favorites, [])
+  if (!userStore.isLogin()) { list.value = []; return }
+  const ids = await getFavorites()
   const goods = await Promise.all(ids.map(id => goodsRepo.get(id)))
   list.value = goods.filter((g): g is Goods => !!g)
 }
 
-onShow(load)
+onShow(async () => {
+  try { await load() } catch { list.value = [] }
+})
 
-function onRemove(id: string): void {
-  const next = storage.get<string[]>(KEYS.favorites, []).filter(x => x !== id)
-  storage.set(KEYS.favorites, next)
-  load()
-  uni.showToast({ title: '已取消收藏', icon: 'none' })
+async function onRemove(id: string): Promise<void> {
+  try {
+    await removeFavorite(id)
+    await load()
+    uni.showToast({ title: '已取消收藏', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: e instanceof Error ? e.message : '操作失败', icon: 'none' })
+  }
 }
 const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=${id}` })
+const goLogin = () => uni.navigateTo({ url: '/pages/user/login' })
 </script>
 <template>
   <view class="page">
-    <EmptyView v-if="!list.length" text="还没有收藏" />
+    <template v-if="!loggedIn">
+      <EmptyView text="请先登录" />
+      <view class="login-btn" @tap="goLogin">去登录</view>
+    </template>
+    <EmptyView v-else-if="!list.length" text="还没有收藏" />
     <view v-for="g in list" :key="g.id" class="card item">
       <image :src="g.cover" class="pic" mode="aspectFill" @tap="goDetail(g.id)" />
       <view class="mid" @tap="goDetail(g.id)">
@@ -96,4 +110,5 @@ const goDetail = (id: string) => uni.navigateTo({ url: `/pages/goods/detail?id=$
 .heart.on {
   color: $price;
 }
+.login-btn { width: 320rpx; margin: 0 auto; background: $brand; color: #fff; text-align: center; padding: 24rpx 0; border-radius: $radius; font-size: 30rpx; }
 </style>
