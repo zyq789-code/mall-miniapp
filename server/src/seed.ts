@@ -143,14 +143,16 @@ const GOODS: GoodsSeed[] = [
 
 const DEFAULT_TAGS = ['包邮', '正品']
 
+// 注意：全部用 INSERT OR IGNORE，保证 seed 幂等——即使库里有部分数据（如分类已存在、商品缺失），
+// 重复跑 seed 也不会撞 UNIQUE 约束崩溃，只会补全缺失的行。
 function insertCategories(db: DatabaseSync): void {
-  const stmt = db.prepare('INSERT INTO categories (id, name, parent_id) VALUES (?, ?, ?)')
+  const stmt = db.prepare('INSERT OR IGNORE INTO categories (id, name, parent_id) VALUES (?, ?, ?)')
   for (const c of CATEGORIES) stmt.run(c.id, c.name, c.parentId)
 }
 
 function insertProducts(db: DatabaseSync): void {
   const stmt = db.prepare(`
-    INSERT INTO products (id, name, subtitle, category_id, price, original_price, stock, sales, tags, status, cover, specs, skus, created_at)
+    INSERT OR IGNORE INTO products (id, name, subtitle, category_id, price, original_price, stock, sales, tags, status, cover, specs, skus, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   for (const g of GOODS) {
@@ -174,7 +176,7 @@ function insertProducts(db: DatabaseSync): void {
 }
 
 function insertAdmin(db: DatabaseSync): void {
-  db.prepare('INSERT INTO users (id, username, password, nickname) VALUES (?, ?, ?, ?)')
+  db.prepare('INSERT OR IGNORE INTO users (id, username, password, nickname) VALUES (?, ?, ?, ?)')
     .run('u1', 'admin', 'admin123', '管理员')
 }
 

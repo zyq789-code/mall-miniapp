@@ -35,11 +35,14 @@ app.use('/api/products', productsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/cart', cartRouter)
 app.use('/api/addresses', addressRouter)
-// 注意挂载顺序：userAssets 内部对全部请求做了 requireUser（含公共接口），
-// userExtras 含公开的 GET /reviews，必须先于 userAssets 挂载才能被公开访问。
+// 注意挂载顺序：
+// 1. /api/upload（admin 接口）必须先于下面两个挂在 /api 的路由，否则会被 userAssets 的
+//    全局 requireUser（要求 role=user）拦截，admin token 会被 401。
+// 2. userAssets 内部对全部请求做了 requireUser（含公共接口），
+//    userExtras 含公开的 GET /reviews，必须先于 userAssets 挂载才能被公开访问。
+app.use('/api/upload', uploadRouter)
 app.use('/api', userExtrasRouter) // /api/reviews /api/aftersales /api/user/points /api/user/spend
 app.use('/api', userAssetsRouter) // /api/favorites /api/footprints /api/coupons
-app.use('/api/upload', uploadRouter)
 
 app.listen(PORT, () => {
   console.log(`Mall server listening on http://localhost:${PORT}`)
