@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
-import type { Member } from '../../models/member'
 import { levelOf, pointsRate } from '../../services/member.service'
-import { storage, KEYS } from '../../utils/storage'
 import { formatTime } from '../../utils/format'
+import { useUserStore } from '../../stores/user'
 
-const user = ref<Member>()
-onShow(() => { user.value = storage.get<Member | null>(KEYS.user, null) ?? undefined })
+const userStore = useUserStore()
+const { member } = storeToRefs(userStore)
+onShow(() => { userStore.fetchProfile() })
 
-const balance = computed(() => user.value?.points ?? 0)
+const isLoggedIn = computed(() => userStore.isLogin())
+const balance = computed(() => member.value.points ?? 0)
 const today = Date.now()
 const day = 24 * 60 * 60 * 1000
 
@@ -22,10 +24,11 @@ const items = computed<PointItem[]>(() => [
 ])
 
 // 演示数据里的下单返积分按会员倍数示意
-const rateTip = computed(() => `（当前等级返积分 ×${pointsRate(levelOf(user.value?.totalSpent ?? 0))}）`)
+const rateTip = computed(() => `（当前等级返积分 ×${pointsRate(levelOf(member.value.totalSpent ?? 0))}）`)
+const goLogin = () => uni.navigateTo({ url: '/pages/user/login' })
 </script>
 <template>
-  <view class="page">
+  <view v-if="isLoggedIn" class="page">
     <view class="card balance">
       <view class="b-label">当前积分</view>
       <view class="b-num">{{ balance }}</view>
@@ -45,6 +48,7 @@ const rateTip = computed(() => `（当前等级返积分 ×${pointsRate(levelOf(
       说明：100 积分 = 1 元，单笔订单最多抵扣 20%。以上明细为演示数据{{ rateTip }}，正式数据上线后替换。
     </view>
   </view>
+  <view v-else class="login-tip" @tap="goLogin">请先登录查看积分 →</view>
 </template>
 <style scoped lang="scss">
 .page {
@@ -105,5 +109,11 @@ const rateTip = computed(() => `（当前等级返积分 ×${pointsRate(levelOf(
   font-size: 22rpx;
   line-height: 1.6;
   padding: 16rpx 8rpx 40rpx;
+}
+.login-tip {
+  padding: 120rpx 48rpx;
+  text-align: center;
+  color: $brand;
+  font-size: 30rpx;
 }
 </style>

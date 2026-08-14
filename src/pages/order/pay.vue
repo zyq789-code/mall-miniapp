@@ -31,7 +31,8 @@ async function doPay() {
   uni.showLoading({ title: '支付中' })
   try {
     const next = await orderStore.doPay(o)
-    // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）
+    // 返积分（按会员等级倍数）+ 累计消费（登录后才有会员数据可累计）。
+    // 下单返积分/累计消费尚无后端接口，本地乐观更新；待 U-C 把积分完整搬到后端后移除。
     if (userStore.isLogin()) {
       userStore.addPoints(earnBySpend(next.payAmount, pointsRate(userStore.level())))
       userStore.addSpend(next.payAmount)

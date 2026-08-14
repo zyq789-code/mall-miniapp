@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
-import type { Member } from '../../models/member'
 import { LEVEL_THRESHOLDS, LEVEL_NAMES } from '../../models/member'
 import { levelOf } from '../../services/member.service'
-import { storage, KEYS } from '../../utils/storage'
 import { formatPrice } from '../../utils/format'
+import { useUserStore } from '../../stores/user'
 
-const user = ref<Member>()
-onShow(() => { user.value = storage.get<Member | null>(KEYS.user, null) ?? undefined })
+const userStore = useUserStore()
+const { member } = storeToRefs(userStore)
+onShow(() => { userStore.fetchProfile() })
 
-const spent = computed(() => user.value?.totalSpent ?? 0)
+const isLoggedIn = computed(() => userStore.isLogin())
+const spent = computed(() => member.value.totalSpent ?? 0)
 const current = computed(() => levelOf(spent.value))
 const nextExists = computed(() => current.value < LEVEL_NAMES.length - 1)
 
@@ -26,9 +28,11 @@ const progress = computed(() => {
   const pct = Math.min(100, Math.floor(((spent.value - cur) / (next - cur)) * 100))
   return { pct, label: `再消费 ${formatPrice(next - spent.value)} 即可升级` }
 })
+
+const goLogin = () => uni.navigateTo({ url: '/pages/user/login' })
 </script>
 <template>
-  <view class="page">
+  <view v-if="isLoggedIn" class="page">
     <view class="card top">
       <view class="cur">当前等级：<text class="strong">{{ LEVEL_NAMES[current] }}</text></view>
       <view class="bar"><view class="bar-in" :style="{ width: progress.pct + '%' }" /></view>
@@ -47,6 +51,7 @@ const progress = computed(() => {
 
     <view class="note">注：等级按累计消费金额自动成长，下单即返积分。</view>
   </view>
+  <view v-else class="login-tip" @tap="goLogin">请先登录查看等级 →</view>
 </template>
 <style scoped lang="scss">
 .page {
@@ -143,5 +148,11 @@ const progress = computed(() => {
   color: $text3;
   font-size: 22rpx;
   padding: 12rpx 0 40rpx;
+}
+.login-tip {
+  padding: 120rpx 48rpx;
+  text-align: center;
+  color: $brand;
+  font-size: 30rpx;
 }
 </style>

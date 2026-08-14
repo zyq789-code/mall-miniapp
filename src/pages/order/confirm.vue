@@ -51,7 +51,7 @@ const address = computed<Address | undefined>(() => storage.get<Address[]>(KEYS.
 
 onShow(() => {
   cart.sync()
-  userStore.sync()
+  userStore.fetchProfile()
   loadGoods()
   userCoupons.value = getCoupons()
   // 一次性回传：券列表选择后写入 selectedCoupon
@@ -90,7 +90,8 @@ async function submit() {
     if (usedCoupon) {
       saveCoupons(getCoupons().map(c => (c.id === usedCoupon.id ? { ...c, status: 'used' as const } : c)))
     }
-    // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）
+    // 扣积分（积分与分 1:1，pointsDeduction 单位分 = 消耗积分数量）。
+    // 扣积分尚无后端接口，本地乐观扣减；待 U-C 把积分完整搬到后端后移除。
     if (pointsDeduction.value > 0) userStore.deductPoints(pointsDeduction.value)
     cart.removeBatch(items.value)
     uni.redirectTo({

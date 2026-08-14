@@ -1,24 +1,25 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { onShow } from '@dcloudio/uni-app'
-import type { Member } from '../../models/member'
 import { LEVEL_THRESHOLDS } from '../../models/member'
 import { levelOf, levelName } from '../../services/member.service'
-import { storage, KEYS } from '../../utils/storage'
 import { formatPrice } from '../../utils/format'
+import { useUserStore } from '../../stores/user'
 
-const user = ref<Member>()
-onShow(() => { user.value = storage.get<Member | null>(KEYS.user, null) ?? undefined })
+const userStore = useUserStore()
+const { member } = storeToRefs(userStore)
+onShow(() => { userStore.fetchProfile() })
 
-const isLoggedIn = computed(() => !!user.value)
-const avatarText = computed(() => user.value?.avatar || user.value?.nickname.charAt(0) || '😀')
-const level = computed(() => levelOf(user.value?.totalSpent ?? 0))
+const isLoggedIn = computed(() => userStore.isLogin())
+const avatarText = computed(() => member.value.avatar || member.value.nickname.charAt(0) || '😀')
+const level = computed(() => levelOf(member.value.totalSpent ?? 0))
 const levelLabel = computed(() => levelName(level.value))
 const nextExists = computed(() => level.value < LEVEL_THRESHOLDS.length - 1)
 
 interface ProgressInfo { pct: number; label: string }
 const progress = computed<ProgressInfo>(() => {
-  const spent = user.value?.totalSpent ?? 0
+  const spent = member.value.totalSpent ?? 0
   if (!nextExists.value) return { pct: 100, label: '已是最高等级' }
   const cur = LEVEL_THRESHOLDS[level.value]
   const next = LEVEL_THRESHOLDS[level.value + 1]
@@ -42,13 +43,26 @@ function onHeaderTap(): void {
   if (!isLoggedIn.value) uni.navigateTo({ url: '/pages/user/login' })
 }
 const go = (url: string) => uni.navigateTo({ url })
+
+function onLogout(): void {
+  uni.showModal({
+    title: '提示',
+    content: '确定退出登录吗？',
+    success: (res) => {
+      if (res.confirm) {
+        userStore.logout()
+        uni.showToast({ title: '已退出登录', icon: 'none' })
+      }
+    },
+  })
+}
 </script>
 <template>
   <view class="page">
     <view class="header" @tap="onHeaderTap">
       <view class="avatar" :class="{ idle: !isLoggedIn }">{{ avatarText }}</view>
       <view class="who">
-        <view v-if="isLoggedIn" class="name">{{ user?.nickname }}</view>
+        <view v-if="isLoggedIn" class="name">{{ member.nickname }}</view>
         <view v-else class="name">点击登录</view>
         <view v-if="isLoggedIn" class="badge">{{ levelLabel }}</view>
       </view>
@@ -58,11 +72,11 @@ const go = (url: string) => uni.navigateTo({ url })
     <view v-if="isLoggedIn" class="member-card">
       <view class="m-row">
         <view class="m-cell">
-          <view class="m-num">{{ user?.points ?? 0 }}</view>
+          <view class="m-num">{{ member.points ?? 0 }}</view>
           <view class="m-label">当前积分</view>
         </view>
         <view class="m-cell">
-          <view class="m-num">{{ formatPrice(user?.totalSpent ?? 0) }}</view>
+          <view class="m-num">{{ formatPrice(member.totalSpent ?? 0) }}</view>
           <view class="m-label">累计消费</view>
         </view>
         <view class="m-cell">
@@ -82,6 +96,8 @@ const go = (url: string) => uni.navigateTo({ url })
         <view class="label">{{ e.label }}</view>
       </view>
     </view>
+
+    <view v-if="isLoggedIn" class="logout" @tap="onLogout">退出登录</view>
   </view>
 </template>
 <style scoped lang="scss">
@@ -199,5 +215,14 @@ const go = (url: string) => uni.navigateTo({ url })
   font-size: 24rpx;
   color: $text2;
   margin-top: 12rpx;
+}
+.logout {
+  margin: 40rpx 24rpx 0;
+  background: $card;
+  border-radius: $radius;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 30rpx;
+  color: $price;
 }
 </style>
